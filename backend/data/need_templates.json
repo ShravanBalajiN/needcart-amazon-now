@@ -1,0 +1,56 @@
+{
+  "guests_arriving": {
+    "label": "Guests Coming",
+    "prompt": "Guests are coming in 30 minutes. Need snacks and drinks for 6 people under ₹500.",
+    "required_categories": ["snacks", "beverages", "disposables"],
+    "optional_categories": ["sweet_snacks"],
+    "forgotten_essentials": ["disposables"],
+    "default_budget": 500,
+    "default_urgency_minutes": 30
+  },
+  "breakfast_rush": {
+    "label": "Breakfast Rush",
+    "prompt": "Kids need breakfast before school in 20 minutes. Nothing in the kitchen.",
+    "required_categories": ["breakfast"],
+    "optional_categories": [],
+    "forgotten_essentials": ["breakfast"],
+    "default_budget": 300,
+    "default_urgency_minutes": 20
+  },
+  "child_fever": {
+    "label": "Child Fever Essentials",
+    "prompt": "My child has a fever. Need medicine and essentials urgently.",
+    "required_categories": ["medicine"],
+    "optional_categories": [],
+    "forgotten_essentials": ["medicine"],
+    "default_budget": 500,
+    "default_urgency_minutes": 15
+  },
+  "power_cut": {
+    "label": "Power Cut",
+    "prompt": "Sudden power cut at home. Need emergency supplies immediately.",
+    "required_categories": ["emergency"],
+    "optional_categories": [],
+    "forgotten_essentials": ["emergency"],
+    "default_budget": 1000,
+    "default_urgency_minutes": 20
+  },
+  "pooja_items": {
+    "label": "Pooja Items",
+    "prompt": "Pooja starting in 45 minutes. Need all essentials.",
+    "required_categories": ["pooja"],
+    "optional_categories": [],
+    "forgotten_essentials": ["pooja"],
+    "default_budget": 400,
+    "default_urgency_minutes": 45
+  },
+  "late_night_hunger": {
+    "label": "Late Night Hunger",
+    "prompt": "It's 11 PM. I'm hungry and everything is closed nearby.",
+    "required_categories": ["late_night"],
+    "optional_categories": [],
+    "forgotten_essentials": ["late_night"],
+    "default_budget": 250,
+    "default_urgency_minutes": 20
+  }
+}
