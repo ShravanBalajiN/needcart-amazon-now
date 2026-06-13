@@ -5,6 +5,7 @@ Converts urgent real-world shopping situations into ready-to-checkout carts.
 
 from __future__ import annotations
 import json
+import logging
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -13,6 +14,10 @@ from app.models import (
     CartMode, GenerateCartRequest, GenerateCartResponse, StressParams,
 )
 from app.intent_parser import parse_need, NEED_TEMPLATES
+
+# Configure logging so app loggers show in uvicorn output
+logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(name)s:%(message)s")
+logging.getLogger("app").setLevel(logging.INFO)
 from app.cart_optimizer import build_cart
 from app.rescue_engine import apply_rescue_mode
 from app.scoring import compute_scores

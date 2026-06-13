@@ -96,6 +96,7 @@ def parse_intent_with_openrouter(text: str) -> Optional[dict]:
             json={
                 "model": OPENROUTER_MODEL,
                 "temperature": 0,
+                "max_tokens": 300,
                 "messages": [
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": f"Parse this shopping need:\n\n{text}"},

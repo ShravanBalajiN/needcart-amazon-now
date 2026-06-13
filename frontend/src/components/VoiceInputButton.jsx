@@ -27,9 +27,7 @@ export default function VoiceInputButton({ onTranscript, disabled }) {
     recognition.interimResults = false;
     recognition.lang = "en-IN";
 
-    recognition.onstart = () => {
-      setListening(true);
-    };
+    recognition.onstart = () => setListening(true);
 
     recognition.onresult = (event) => {
       const transcript = event.results[0][0].transcript
@@ -64,16 +62,16 @@ export default function VoiceInputButton({ onTranscript, disabled }) {
     <button
       onClick={handleClick}
       disabled={disabled}
-      className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
+      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
         listening
-          ? "bg-red-500/20 border-red-500 text-red-400"
-          : "bg-slate-800/60 border-slate-700 text-slate-300 hover:border-amber-500/50 hover:text-amber-400"
+          ? "bg-red-50 border border-red-300 text-red-600"
+          : "bg-gray-50 border border-gray-200 text-gray-600 hover:bg-orange-50 hover:border-orange-300 hover:text-orange-600"
       }`}
-      title={listening ? "Click to stop" : "Start voice input"}
+      title={listening ? "Click to stop" : "Voice input"}
       aria-label={listening ? "Listening... Click to stop" : "Start voice input"}
     >
-      {listening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-      <span className="text-sm">{listening ? "Listening..." : "Voice"}</span>
+      {listening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+      {listening ? "Listening..." : "Voice"}
     </button>
   );
 }

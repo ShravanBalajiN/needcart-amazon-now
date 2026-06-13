@@ -285,21 +285,31 @@ def parse_need(text: str, override_budget: Optional[float] = None,
     Priority: OpenRouter LLM > Bedrock LLM > regex parser.
     Stress overrides take precedence over parsed values.
     """
-    from app.llm_client import parse_intent_with_openrouter
-    from app.bedrock_client import parse_intent_with_llm
+    from app.llm_client import parse_intent_with_openrouter, is_enabled as llm_enabled
+    from app.bedrock_client import parse_intent_with_llm, is_enabled as bedrock_enabled
+    from app.config import USE_LLM
 
     parser_source = "regex"
+    llm_result = None
 
-    # Try OpenRouter LLM first (returns None if disabled or fails)
-    llm_result = parse_intent_with_openrouter(text)
-    if llm_result:
-        parser_source = "llm_openrouter"
+    # Determine parser source label based on config state
+    if USE_LLM and not llm_enabled():
+        # USE_LLM=true but API key missing or provider misconfigured
+        parser_source = "regex_fallback"
+    elif USE_LLM and llm_enabled():
+        # Try OpenRouter LLM
+        llm_result = parse_intent_with_openrouter(text)
+        if llm_result:
+            parser_source = "llm"
+        else:
+            # LLM was enabled but call failed
+            parser_source = "regex_fallback"
 
-    # Try Bedrock LLM if OpenRouter didn't produce a result
-    if llm_result is None:
+    # Try Bedrock LLM if no result yet and Bedrock is enabled
+    if llm_result is None and bedrock_enabled():
         llm_result = parse_intent_with_llm(text)
         if llm_result:
-            parser_source = "llm_bedrock"
+            parser_source = "llm"
 
     if llm_result and llm_result.get("confidence", 0) >= 0.5:
         intent = llm_result["intent"]
@@ -345,7 +355,10 @@ def parse_need(text: str, override_budget: Optional[float] = None,
         return intent, constraints
 
     # Fallback: deterministic regex parser
-    parser_source = "regex" if parser_source == "regex" else "fallback"
+    if parser_source == "regex":
+        pass  # stays as "regex"
+    else:
+        parser_source = "regex_fallback"
     return _parse_need_regex(text, override_budget, override_urgency, parser_source)
 
 
