@@ -182,6 +182,8 @@ def build_cart(
     required_categories = template.get("required_categories", [])
     optional_categories = template.get("optional_categories", [])
     forgotten_categories = template.get("forgotten_essentials", [])
+    blocked_groups = set(template.get("blocked_substitute_groups", []))
+    forgotten_reason = template.get("forgotten_essential_reason", "Forgotten essential.")
 
     budget = constraints.budget or 9999
     dietary = constraints.dietary_preference
@@ -220,11 +222,15 @@ def build_cart(
         if product["id"] in added_ids:
             return True  # already in cart
 
+        # Block products from blocked substitute groups
+        if product.get("substitute_group") in blocked_groups:
+            return False
+
         if not _is_available(product, stress):
             # Try substitution
             remaining = budget - total
             sub = _find_substitute(product, stress, dietary, remaining, urgency)
-            if sub and sub["id"] not in added_ids:
+            if sub and sub["id"] not in added_ids and sub.get("substitute_group") not in blocked_groups:
                 qty = 1
                 item_cost = sub["price"] * qty
                 if total + item_cost <= budget:
@@ -251,16 +257,21 @@ def build_cart(
 
         # Product is available
         qty = 1
-        # In complete/balanced mode with many guests, consider quantity 2 for key items
+        # In complete/balanced mode with many guests, consider quantity 2 but only for
+        # a limited number of items and only if budget is generous
         if mode in (CartMode.complete, CartMode.balanced) and constraints.people_count and constraints.people_count > 4:
-            if product.get("priority") == "required" and product["price"] * 2 <= (budget - total) * 0.5:
+            # Only double if: required item, cheap, and we haven't doubled too many
+            doubled_count = sum(1 for ci in cart_items if ci.quantity > 1)
+            if (product.get("priority") == "required"
+                    and doubled_count < 2
+                    and product["price"] * 2 <= (budget - total) * 0.3):
                 qty = 2
 
         item_cost = product["price"] * qty
         if total + item_cost <= budget:
             intent_label = intent.replace("_", " ")
             if is_forgotten:
-                reason = "Forgotten essential for guest serving."
+                reason = forgotten_reason
             elif product.get("priority") in ("required", "forgotten_essential"):
                 reason = f"Essential item for {intent_label}, available now."
             else:
@@ -342,18 +353,31 @@ def build_cart(
 
         else:
             # balanced / complete - add must-have items, then optionals if budget allows
+            # In balanced mode, limit items per category to ensure all categories get budget
+            max_items_per_cat = 4 if mode == CartMode.complete else 3
+            cat_item_count = 0
             for product in must_have_in_cat:
+                if cat_item_count >= max_items_per_cat:
+                    break
                 if product.get("substitute_group") in covered_groups:
                     continue
                 is_fe = product.get("priority") == "forgotten_essential"
+                old_total = total
                 _try_add_product(product, is_forgotten=is_fe)
+                if total > old_total:
+                    cat_item_count += 1
 
             # In complete mode, also add optional items from required categories
             if mode == CartMode.complete:
                 for product in optional_in_cat:
+                    if cat_item_count >= max_items_per_cat + 2:
+                        break
                     if product.get("substitute_group") in covered_groups:
                         continue
+                    old_total = total
                     _try_add_product(product, is_forgotten=False)
+                    if total > old_total:
+                        cat_item_count += 1
 
     # =========================================================================
     # STEP 2: Forgotten essentials (only if not already added in step 1)

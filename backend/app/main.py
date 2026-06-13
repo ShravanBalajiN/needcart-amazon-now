@@ -162,8 +162,11 @@ def generate_cart(request: GenerateCartRequest):
             CartMode.balanced: "Balanced",
         }
 
+        # Map internal intent to external display name
+        display_intent = template.get("intent", intent)
+
         return GenerateCartResponse(
-            detected_intent=intent,
+            detected_intent=display_intent,
             constraints=constraints,
             cart_status=cart_status,
             cart_mode=mode_labels.get(request.mode, "Balanced"),
@@ -248,20 +251,24 @@ def _build_summary(
             parts.append(f"within Rs.{constraints.budget:.0f} budget (total Rs.{total:.0f})")
         if has_forgotten:
             parts.append("- forgotten essentials included")
-        return " ".join(parts) + "."
-
-    if cart_status == "Substituted Cart":
+        summary = " ".join(parts) + "."
+    elif cart_status == "Substituted Cart":
         parts = [f"Built {intent_label} cart with {item_count} items"]
         parts.append(f"- {len(replacements)} item(s) substituted due to stockouts")
         if constraints.budget:
             parts.append(f"within Rs.{constraints.budget:.0f} budget")
-        return " ".join(parts) + "."
+        summary = " ".join(parts) + "."
+    else:
+        # Complete Cart or default
+        parts = [f"Complete {intent_label} cart with {item_count} items"]
+        if constraints.budget:
+            parts.append(f"within Rs.{constraints.budget:.0f} budget")
+        if has_forgotten:
+            parts.append("- forgotten essentials included")
+        summary = " ".join(parts) + "."
 
-    # Complete Cart or default
-    parts = [f"Complete {intent_label} cart with {item_count} items"]
-    if constraints.budget:
-        parts.append(f"within Rs.{constraints.budget:.0f} budget")
-    if has_forgotten:
-        parts.append("- forgotten essentials included")
+    # Append safety note for child_fever
+    if intent == "child_fever":
+        summary += " Non-prescription support essentials only. Please consult a doctor for medication or emergency symptoms."
 
-    return " ".join(parts) + "."
+    return summary

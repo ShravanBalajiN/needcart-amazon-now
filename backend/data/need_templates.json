@@ -1,56 +1,168 @@
 {
   "guests_arriving": {
+    "intent": "guests_arriving",
     "label": "Guests Coming",
     "prompt": "Guests are coming in 30 minutes. Need snacks and drinks for 6 people under ₹500.",
     "required_categories": ["snacks", "beverages", "disposables"],
     "optional_categories": ["sweet_snacks"],
     "forgotten_essentials": ["disposables"],
+    "forgotten_essential_reason": "Forgotten essential for guest serving.",
     "default_budget": 500,
-    "default_urgency_minutes": 30
+    "default_urgency_minutes": 30,
+    "constraints": {
+      "min_categories_for_complete": 3,
+      "budget_utilization_target": 0.85,
+      "max_single_item_budget_share": 0.3,
+      "prefer_variety": true
+    },
+    "safety_notes": [
+      "Check allergen info if guests have known dietary restrictions.",
+      "Disposables reduce cleanup time and are often forgotten.",
+      "Sweet snacks add perceived completeness to guest hospitality."
+    ],
+    "rescue_rules": {
+      "minimum_categories": ["snacks", "beverages"],
+      "drop_order": ["sweet_snacks", "disposables", "beverages", "snacks"],
+      "rescue_message": "Could not fill all guest categories within budget. Snacks and drinks prioritized."
+    }
   },
   "breakfast_rush": {
+    "intent": "breakfast_rush",
     "label": "Breakfast Rush",
     "prompt": "Kids need breakfast before school in 20 minutes. Nothing in the kitchen.",
     "required_categories": ["breakfast"],
-    "optional_categories": [],
+    "optional_categories": ["dairy", "bakery"],
     "forgotten_essentials": ["breakfast"],
+    "forgotten_essential_reason": "Often forgotten breakfast add-on.",
     "default_budget": 300,
-    "default_urgency_minutes": 20
+    "default_urgency_minutes": 20,
+    "constraints": {
+      "min_categories_for_complete": 1,
+      "budget_utilization_target": 0.75,
+      "max_single_item_budget_share": 0.4,
+      "prefer_variety": true
+    },
+    "safety_notes": [
+      "Check for nut allergies for children.",
+      "Prioritize items that need no cooking for fastest preparation.",
+      "Milk and bread form the minimum viable breakfast."
+    ],
+    "rescue_rules": {
+      "minimum_categories": ["breakfast"],
+      "drop_order": ["bakery", "dairy", "breakfast"],
+      "rescue_message": "Minimal breakfast assembled. Consider bread + milk + spreads as base."
+    }
   },
   "child_fever": {
+    "intent": "child_fever_essentials",
     "label": "Child Fever Essentials",
-    "prompt": "My child has a fever. Need medicine and essentials urgently.",
-    "required_categories": ["medicine"],
-    "optional_categories": [],
-    "forgotten_essentials": ["medicine"],
+    "prompt": "My child has a fever. Need support essentials urgently.",
+    "required_categories": ["health_essentials"],
+    "optional_categories": ["baby"],
+    "forgotten_essentials": ["health_essentials"],
+    "blocked_substitute_groups": ["fever_medicine", "cough_syrup", "cold_balm"],
+    "forgotten_essential_reason": "Support essential for fever-care situation.",
     "default_budget": 500,
-    "default_urgency_minutes": 15
+    "default_urgency_minutes": 15,
+    "constraints": {
+      "min_categories_for_complete": 1,
+      "budget_utilization_target": 0.7,
+      "max_single_item_budget_share": 0.5,
+      "prefer_variety": false
+    },
+    "safety_notes": [
+      "Non-prescription support essentials only.",
+      "Please consult a doctor for medication or emergency symptoms.",
+      "ORS is critical for dehydration from fever.",
+      "Thermometer is essential for monitoring."
+    ],
+    "rescue_rules": {
+      "minimum_categories": ["health_essentials"],
+      "drop_order": ["baby", "health_essentials"],
+      "rescue_message": "Minimum fever care support items included. Consult doctor if fever persists beyond 24 hours."
+    }
   },
   "power_cut": {
+    "intent": "power_cut",
     "label": "Power Cut",
     "prompt": "Sudden power cut at home. Need emergency supplies immediately.",
     "required_categories": ["emergency"],
-    "optional_categories": [],
+    "optional_categories": ["household"],
     "forgotten_essentials": ["emergency"],
+    "forgotten_essential_reason": "Emergency backup essential during power cut.",
     "default_budget": 1000,
-    "default_urgency_minutes": 20
+    "default_urgency_minutes": 20,
+    "constraints": {
+      "min_categories_for_complete": 1,
+      "budget_utilization_target": 0.6,
+      "max_single_item_budget_share": 0.5,
+      "prefer_variety": false
+    },
+    "safety_notes": [
+      "Keep candles away from curtains and flammable objects.",
+      "Power bank should be kept charged for emergencies.",
+      "Mosquito repellent is critical if no fans are running.",
+      "Check inverter battery water level if applicable."
+    ],
+    "rescue_rules": {
+      "minimum_categories": ["emergency"],
+      "drop_order": ["household", "emergency"],
+      "rescue_message": "Basic light sources included. Add mosquito protection if power cut extends to night."
+    }
   },
   "pooja_items": {
+    "intent": "pooja_items",
     "label": "Pooja Items",
     "prompt": "Pooja starting in 45 minutes. Need all essentials.",
     "required_categories": ["pooja"],
     "optional_categories": [],
     "forgotten_essentials": ["pooja"],
+    "forgotten_essential_reason": "Often forgotten pooja essential.",
     "default_budget": 400,
-    "default_urgency_minutes": 45
+    "default_urgency_minutes": 45,
+    "constraints": {
+      "min_categories_for_complete": 1,
+      "budget_utilization_target": 0.8,
+      "max_single_item_budget_share": 0.35,
+      "prefer_variety": true
+    },
+    "safety_notes": [
+      "Camphor should be kept away from children.",
+      "Fresh flowers are preferred but artificial works in emergency.",
+      "Cotton wicks and oil are commonly forgotten together.",
+      "Ghee can substitute for diya oil in most traditions."
+    ],
+    "rescue_rules": {
+      "minimum_categories": ["pooja"],
+      "drop_order": ["pooja"],
+      "rescue_message": "Core pooja items included. Fresh flowers or coconut may need separate trip."
+    }
   },
   "late_night_hunger": {
+    "intent": "late_night_hunger",
     "label": "Late Night Hunger",
     "prompt": "It's 11 PM. I'm hungry and everything is closed nearby.",
-    "required_categories": ["late_night"],
-    "optional_categories": [],
-    "forgotten_essentials": ["late_night"],
+    "required_categories": ["snacks"],
+    "optional_categories": ["beverages", "sweet_snacks"],
+    "forgotten_essentials": [],
+    "forgotten_essential_reason": "Useful add-on for late-night snack order.",
     "default_budget": 250,
-    "default_urgency_minutes": 20
+    "default_urgency_minutes": 20,
+    "constraints": {
+      "min_categories_for_complete": 1,
+      "budget_utilization_target": 0.7,
+      "max_single_item_budget_share": 0.4,
+      "prefer_variety": true
+    },
+    "safety_notes": [
+      "Prefer items that are easy to prepare or ready to eat.",
+      "Hot beverages like chai help with late night satisfaction.",
+      "Instant noodles or cup meals are fastest to prepare."
+    ],
+    "rescue_rules": {
+      "minimum_categories": ["snacks"],
+      "drop_order": ["sweet_snacks", "beverages", "snacks"],
+      "rescue_message": "Basic munchies included. Add a hot drink for comfort."
+    }
   }
 }
