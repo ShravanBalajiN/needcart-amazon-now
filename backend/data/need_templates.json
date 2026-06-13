@@ -164,5 +164,30 @@
       "drop_order": ["sweet_snacks", "beverages", "snacks"],
       "rescue_message": "Basic munchies included. Add a hot drink for comfort."
     }
+  },
+  "general_urgent_need": {
+    "intent": "general_urgent_need",
+    "label": "General Urgent Need",
+    "prompt": "I need some useful items quickly.",
+    "required_categories": ["household"],
+    "optional_categories": ["snacks", "beverages"],
+    "forgotten_essentials": [],
+    "forgotten_essential_reason": "Useful add-on for your order.",
+    "default_budget": 500,
+    "default_urgency_minutes": 20,
+    "constraints": {
+      "min_categories_for_complete": 1,
+      "budget_utilization_target": 0.7,
+      "max_single_item_budget_share": 0.4,
+      "prefer_variety": true
+    },
+    "safety_notes": [
+      "General household items selected based on availability."
+    ],
+    "rescue_rules": {
+      "minimum_categories": ["household"],
+      "drop_order": ["beverages", "snacks", "household"],
+      "rescue_message": "Basic items included within budget."
+    }
   }
 }
