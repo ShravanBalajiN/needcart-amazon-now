@@ -22,6 +22,7 @@ class GenerateCartRequest(BaseModel):
     need: str
     mode: CartMode = CartMode.balanced
     stress: StressParams = Field(default_factory=StressParams)
+    household_profile_id: Optional[str] = None
 
 
 class Constraints(BaseModel):
@@ -40,6 +41,8 @@ class CartItem(BaseModel):
     eta_minutes: int
     reason: str
     is_forgotten_essential: bool = False
+    is_personalized: bool = False
+    personalization_reason: Optional[str] = None
 
 
 class Replacement(BaseModel):

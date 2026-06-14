@@ -173,6 +173,7 @@ def build_cart(
     constraints: Constraints,
     mode: CartMode,
     stress: StressParams,
+    household_profile: dict | None = None,
 ) -> tuple[list[CartItem], list[Replacement], list[SkippedItem], bool]:
     """
     Build the optimized cart.
@@ -189,6 +190,97 @@ def build_cart(
     dietary = constraints.dietary_preference
     urgency = constraints.urgency_minutes
 
+    # Profile preferences
+    preferred_brands = [b.lower() for b in (household_profile or {}).get("preferred_brands", [])]
+    avoided_keywords = [k.lower() for k in (household_profile or {}).get("avoided_keywords", [])]
+    preferred_keywords = [k.lower() for k in (household_profile or {}).get("preferred_keywords", [])]
+    preferred_categories = [c.lower() for c in (household_profile or {}).get("preferred_categories", [])]
+    budget_bias = (household_profile or {}).get("budget_bias", False)
+    personalization_reason = (household_profile or {}).get("personalization_reason", "")
+
+    def _is_preferred(product: dict) -> bool:
+        """Check if product matches profile preferences."""
+        if not household_profile:
+            return False
+        name_lower = product["name"].lower()
+        cat_lower = product.get("category", "").lower()
+        tags = [t.lower() for t in product.get("dietary_tags", [])]
+        # Check preferred brands
+        for brand in preferred_brands:
+            if brand in name_lower:
+                return True
+        # Check preferred keywords against name, category, and tags
+        for kw in preferred_keywords:
+            if kw in name_lower:
+                return True
+            if kw in cat_lower:
+                return True
+            for tag in tags:
+                if kw in tag:
+                    return True
+        # Check preferred categories
+        if cat_lower in preferred_categories:
+            return True
+        return False
+
+    def _is_budget_preferred(product: dict, all_in_group: list[dict]) -> bool:
+        """For budget_saver profile: check if product is among the cheapest in its group."""
+        if not budget_bias or not household_profile:
+            return False
+        if not all_in_group:
+            return False
+        min_price = min(p["price"] for p in all_in_group)
+        # Mark as budget-preferred if it's the cheapest or within 20% of cheapest
+        return product["price"] <= min_price * 1.2
+
+    def _is_avoided(product: dict) -> bool:
+        """Check if product should be avoided based on profile."""
+        if not household_profile:
+            return False
+        name_lower = product["name"].lower()
+        cat_lower = product.get("category", "").lower()
+        tags = [t.lower() for t in product.get("dietary_tags", [])]
+        for kw in avoided_keywords:
+            kw_lower = kw.lower()
+            if kw_lower in name_lower:
+                return True
+            if kw_lower in cat_lower:
+                return True
+            for tag in tags:
+                if kw_lower in tag:
+                    return True
+        return False
+
+    def _profile_sort(products: list[dict], base_sorted: list[dict]) -> list[dict]:
+        """Rerank products: keyword-preferred first, category-preferred next, avoided last, rest unchanged."""
+        if not household_profile:
+            return base_sorted
+
+        def _is_keyword_preferred(product: dict) -> bool:
+            """Check if product matches keyword/brand preferences (stronger signal)."""
+            name_lower = product["name"].lower()
+            tags = [t.lower() for t in product.get("dietary_tags", [])]
+            for brand in preferred_brands:
+                if brand in name_lower:
+                    return True
+            for kw in preferred_keywords:
+                if kw in name_lower:
+                    return True
+                for tag in tags:
+                    if kw in tag:
+                        return True
+            return False
+
+        keyword_preferred = [p for p in base_sorted if _is_keyword_preferred(p) and not _is_avoided(p)]
+        cat_preferred = [p for p in base_sorted if not _is_keyword_preferred(p) and _is_preferred(p) and not _is_avoided(p)]
+        normal = [p for p in base_sorted if not _is_preferred(p) and not _is_avoided(p)]
+        avoided = [p for p in base_sorted if _is_avoided(p)]
+        return keyword_preferred + cat_preferred + normal + avoided
+
+    budget = constraints.budget or 9999
+    dietary = constraints.dietary_preference
+    urgency = constraints.urgency_minutes
+
     cart_items: list[CartItem] = []
     replacements: list[Replacement] = []
     skipped: list[SkippedItem] = []
@@ -200,6 +292,27 @@ def build_cart(
     def _add_item(product: dict, qty: int, reason: str, is_forgotten: bool = False) -> None:
         nonlocal total
         item_cost = product["price"] * qty
+
+        # Determine personalization status
+        personalized = False
+        p_reason = None
+        if household_profile is not None:
+            if _is_preferred(product):
+                personalized = True
+                p_reason = personalization_reason or "Preferred by this household."
+            elif budget_bias:
+                # For budget_saver: find peers in same substitute_group or category
+                group = product.get("substitute_group")
+                if group:
+                    peers = [p for p in CATALOG if p.get("substitute_group") == group
+                             and _is_available(p, stress) and _matches_dietary(p, dietary)]
+                else:
+                    peers = [p for p in CATALOG if p["category"] == product["category"]
+                             and _is_available(p, stress) and _matches_dietary(p, dietary)]
+                if _is_budget_preferred(product, peers):
+                    personalized = True
+                    p_reason = personalization_reason or "Budget-friendly pick for this household."
+
         cart_items.append(CartItem(
             id=product["id"],
             name=product["name"],
@@ -207,8 +320,10 @@ def build_cart(
             price=product["price"],
             quantity=qty,
             eta_minutes=product["eta_minutes"],
-            reason=_sanitize_text(reason),
+            reason=_sanitize_text(reason + (f" Personalized pick: {p_reason}" if personalized else "")),
             is_forgotten_essential=is_forgotten,
+            is_personalized=personalized,
+            personalization_reason=p_reason,
         ))
         total += item_cost
         added_ids.add(product["id"])
@@ -305,6 +420,7 @@ def build_cart(
             if p["category"] == cat and _matches_dietary(p, dietary)
         ]
         cat_products = _sort_products(cat_products, mode)
+        cat_products = _profile_sort(cat_products, cat_products)
 
         # Items with priority "required" or "forgotten_essential" are both valid
         # for filling a required category slot
@@ -405,6 +521,7 @@ def build_cart(
             if p["category"] == cat and _matches_dietary(p, dietary)
         ]
         cat_products = _sort_products(cat_products, mode)
+        cat_products = _profile_sort(cat_products, cat_products)
 
         if mode == CartMode.budget:
             # In budget mode, add ONE low-cost sweet/bakery item if budget allows

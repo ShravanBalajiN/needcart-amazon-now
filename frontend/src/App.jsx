@@ -20,12 +20,16 @@ import { healthCheck, generateCart } from "./api";
 import NeedInput from "./components/NeedInput";
 import ScenarioChips from "./components/ScenarioChips";
 import CartModeSelector from "./components/CartModeSelector";
+import FamilyProfileSelector from "./components/FamilyProfileSelector";
 import StressTestPanel from "./components/StressTestPanel";
 import CartHealthScore from "./components/CartHealthScore";
 import CartItemCard from "./components/CartItemCard";
 import ReplacementPanel from "./components/ReplacementPanel";
 import SkippedItemsPanel from "./components/SkippedItemsPanel";
 import CheckoutMock from "./components/CheckoutMock";
+import WhyThisCart from "./components/WhyThisCart";
+import PredictiveCards from "./components/PredictiveCards";
+import EcosystemRoadmap from "./components/EcosystemRoadmap";
 
 const DEFAULT_STRESS = {
   override_budget: null,
@@ -47,11 +51,13 @@ const INTENT_DISPLAY = {
 export default function App() {
   const [need, setNeed] = useState("");
   const [mode, setMode] = useState("balanced");
+  const [profile, setProfile] = useState("default");
   const [stress, setStress] = useState(DEFAULT_STRESS);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [backendUp, setBackendUp] = useState(true);
   const [result, setResult] = useState(null);
+  const [cartItems, setCartItems] = useState([]);
 
   useEffect(() => {
     healthCheck()
@@ -64,10 +70,21 @@ export default function App() {
     setLoading(true);
     setError(null);
     setResult(null);
+    setCartItems([]);
+
+    const payload = {
+      need: need.trim(),
+      mode,
+      stress,
+      household_profile_id: profile,
+    };
+    console.log("Selected household profile:", profile);
+    console.log("Generate cart payload:", payload);
 
     try {
-      const data = await generateCart({ need: need.trim(), mode, stress });
+      const data = await generateCart(payload);
       setResult(data);
+      setCartItems(data.items || []);
     } catch {
       setError("Could not build cart right now. Please try again.");
     } finally {
@@ -78,6 +95,18 @@ export default function App() {
   const handleRebuild = () => {
     if (need.trim()) handleSubmit();
   };
+
+  const handleSwap = (originalItem, alternative) => {
+    setCartItems((prev) =>
+      prev.map((item) =>
+        item.id === originalItem.id && item.name === originalItem.name
+          ? { ...item, name: alternative.name, price: alternative.price, reason: "Smart Swap: user selected alternative." }
+          : item
+      )
+    );
+  };
+
+  const cartTotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -107,30 +136,40 @@ export default function App() {
           </div>
         )}
 
-        {/* Hero Input Section */}
+        {/* Hero Section: Input (left) + Predictive (right) */}
         <section className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-          <div className="max-w-3xl mx-auto">
-            <h1 className="text-2xl font-bold text-gray-900 mb-1">
-              Tell us what happened. We'll build the cart.
-            </h1>
-            <p className="text-sm text-gray-500 mb-5">
-              NeedCart turns urgent situations into checkout-ready Amazon Now carts in seconds.
-            </p>
-            <NeedInput
-              value={need}
-              onChange={setNeed}
-              onSubmit={handleSubmit}
-              onVoice={(t) => setNeed(t)}
-              loading={loading}
-            />
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            {/* Left: Input area - 65% */}
+            <div className="lg:col-span-3">
+              <h1 className="text-2xl font-bold text-gray-900 mb-1">
+                Tell us what happened. We'll build the cart.
+              </h1>
+              <p className="text-sm text-gray-500 mb-5">
+                NeedCart turns urgent situations into checkout-ready Amazon Now carts in seconds.
+              </p>
+              <NeedInput
+                value={need}
+                onChange={setNeed}
+                onSubmit={handleSubmit}
+                onVoice={(t) => setNeed(t)}
+                loading={loading}
+              />
+            </div>
+            {/* Right: Predictive NeedCart - 35% */}
+            <div className="lg:col-span-2 lg:border-l lg:border-gray-100 lg:pl-6">
+              <PredictiveCards onSelect={(p) => setNeed(p)} disabled={loading} />
+            </div>
           </div>
         </section>
 
-        {/* Scenarios + Mode + Stress */}
+        {/* Scenarios + Mode + Profile + Stress */}
         <section className="grid grid-cols-1 lg:grid-cols-4 gap-4">
           <div className="lg:col-span-3 space-y-4">
             <ScenarioChips onSelect={(p) => setNeed(p)} disabled={loading} selected={need} />
-            <CartModeSelector selected={mode} onChange={setMode} disabled={loading} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <CartModeSelector selected={mode} onChange={setMode} disabled={loading} />
+              <FamilyProfileSelector selected={profile} onChange={setProfile} disabled={loading} />
+            </div>
           </div>
           <div className="lg:col-span-1">
             <StressTestPanel stress={stress} onChange={setStress} onRebuild={handleRebuild} disabled={loading || !need.trim()} />
@@ -168,40 +207,52 @@ export default function App() {
           <div className="animate-fadeIn grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left column: Cart items */}
             <div className="lg:col-span-2 space-y-4">
-              {/* Detected intent */}
               <IntentCard result={result} />
+              <WhyThisCart result={result} />
 
-              {/* Cart items */}
-              {result.items && result.items.length > 0 && (
+              {cartItems.length > 0 && (
                 <div className="space-y-2">
-                  <h3 className="text-sm font-semibold text-gray-700">Cart Items ({result.items.length})</h3>
-                  {result.items.map((item) => (
-                    <CartItemCard key={item.id + item.name} item={item} />
+                  <h3 className="text-sm font-semibold text-gray-700">Cart Items ({cartItems.length})</h3>
+                  {cartItems.map((item, idx) => (
+                    <CartItemCard
+                      key={item.id + item.name + idx}
+                      item={item}
+                      onSwap={handleSwap}
+                      isPersonalized={
+                        item.is_personalized === true ||
+                        !!item.personalization_reason ||
+                        (item.reason && (
+                          item.reason.includes("Personalized pick") ||
+                          item.reason.includes("Preferred by") ||
+                          item.reason.includes("Matches")
+                        ))
+                      }
+                    />
                   ))}
                 </div>
               )}
 
-              {/* Replacements */}
               <ReplacementPanel replacements={result.replacements} />
-
-              {/* Skipped */}
               <SkippedItemsPanel skippedItems={result.skipped_items} />
             </div>
 
             {/* Right column: Summary */}
             <div className="lg:col-span-1">
               <div className="sticky top-6 space-y-4">
-                <CartSummary result={result} />
+                <CartSummary result={result} cartTotal={cartTotal} />
                 <CheckoutMock
                   checkoutReady={result.checkout_ready}
-                  totalPrice={result.total_price}
+                  totalPrice={cartTotal}
                   eta={result.eta_minutes}
-                  itemCount={result.items?.length || 0}
+                  itemCount={cartItems.length}
                 />
               </div>
             </div>
           </div>
         )}
+
+        {/* Ecosystem Roadmap */}
+        <EcosystemRoadmap />
       </main>
     </div>
   );
@@ -214,7 +265,7 @@ function IntentCard({ result }) {
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-4">
       <div className="flex items-center gap-3 mb-3">
-        <div className={`p-2 rounded-lg bg-gray-50`}>
+        <div className="p-2 rounded-lg bg-gray-50">
           <Icon className={`w-5 h-5 ${intentInfo.color}`} />
         </div>
         <div>
@@ -244,19 +295,16 @@ function ConstraintPill({ icon: Icon, label, value }) {
   );
 }
 
-function CartSummary({ result }) {
+function CartSummary({ result, cartTotal }) {
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
       <h3 className="text-sm font-bold text-gray-900 mb-3">Cart Summary</h3>
-
-      {/* Status badge */}
       <StatusBadge status={result.cart_status} />
 
-      {/* Totals */}
       <div className="mt-4 space-y-2">
         <div className="flex justify-between items-center">
           <span className="text-sm text-gray-600">Total</span>
-          <span className="text-lg font-bold text-gray-900">₹{result.total_price}</span>
+          <span className="text-lg font-bold text-gray-900">₹{cartTotal}</span>
         </div>
         <div className="flex justify-between items-center">
           <span className="text-sm text-gray-600">Delivery ETA</span>
@@ -277,12 +325,10 @@ function CartSummary({ result }) {
         </div>
       </div>
 
-      {/* Summary text */}
       <p className="mt-4 text-xs text-gray-500 leading-relaxed border-t border-gray-100 pt-3">
         {result.summary}
       </p>
 
-      {/* Scores */}
       <div className="mt-4 border-t border-gray-100 pt-3">
         <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wide mb-2">Order Readiness</p>
         <CartHealthScore scores={result.scores} />

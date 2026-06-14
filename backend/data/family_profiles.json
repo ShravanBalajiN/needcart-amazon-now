@@ -1,0 +1,68 @@
+{
+  "default": {
+    "label": "Default Household",
+    "description": "Standard urgent cart logic.",
+    "preferred_brands": [],
+    "preferred_keywords": [],
+    "preferred_categories": [],
+    "avoided_keywords": [],
+    "dietary_preference": null,
+    "budget_bias": false,
+    "personalization_reason": null
+  },
+  "pepsi_family": {
+    "label": "Pepsi Family",
+    "description": "Prefers Pepsi, Lays and Good Day where available.",
+    "preferred_brands": ["Pepsi", "Lays", "Good Day"],
+    "preferred_keywords": ["pepsi", "lays", "good day"],
+    "preferred_categories": [],
+    "avoided_keywords": ["Coke", "Cola", "Thumbs Up", "Sprite"],
+    "dietary_preference": null,
+    "budget_bias": false,
+    "personalization_reason": "Preferred by Pepsi Family."
+  },
+  "veg_family": {
+    "label": "Vegetarian Family",
+    "description": "Prioritizes veg-friendly items and avoids egg/chicken.",
+    "preferred_brands": [],
+    "preferred_keywords": ["veg", "vegetarian", "milk", "bread", "paneer", "curd", "fruits", "juice", "water", "biscuits", "poha", "oats", "idli", "dosa batter"],
+    "preferred_categories": ["dairy", "breakfast", "bakery"],
+    "avoided_keywords": ["chicken", "egg", "eggs", "non-veg", "non veg"],
+    "dietary_preference": "veg",
+    "budget_bias": false,
+    "personalization_reason": "Matches Vegetarian Family preference."
+  },
+  "non_veg_family": {
+    "label": "Non-Veg Family",
+    "description": "Prefers egg, chicken and high-protein options where relevant.",
+    "preferred_brands": [],
+    "preferred_keywords": ["egg", "eggs", "chicken", "protein", "high protein", "omelette"],
+    "preferred_categories": ["protein", "breakfast", "snacks"],
+    "avoided_keywords": [],
+    "dietary_preference": "non-veg",
+    "budget_bias": false,
+    "personalization_reason": "Matches Non-Veg Family preference."
+  },
+  "budget_saver_family": {
+    "label": "Budget Saver",
+    "description": "Prioritizes lower-cost picks while preserving need coverage.",
+    "preferred_brands": [],
+    "preferred_keywords": ["value", "small", "budget", "economy", "mini"],
+    "preferred_categories": [],
+    "avoided_keywords": [],
+    "dietary_preference": null,
+    "budget_bias": true,
+    "personalization_reason": "Budget-friendly pick for this household."
+  },
+  "health_conscious_family": {
+    "label": "Health Conscious",
+    "description": "Prefers water, oats, juice and lighter choices where available.",
+    "preferred_brands": ["Oats", "Coconut Water", "Honey"],
+    "preferred_keywords": ["water", "juice", "oats", "fruits", "low sugar", "healthy", "milk", "curd", "nuts", "protein", "light", "mineral"],
+    "preferred_categories": ["dairy", "breakfast"],
+    "avoided_keywords": ["cola", "chips", "kurkure", "noodles", "cream", "thumbs up", "pepsi", "sprite"],
+    "dietary_preference": null,
+    "budget_bias": false,
+    "personalization_reason": "Health-conscious pick for this household."
+  }
+}

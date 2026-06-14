@@ -29,3 +29,11 @@ export async function generateCart(payload) {
   }
   return response.json();
 }
+
+export async function getFamilyProfiles() {
+  const response = await fetch(`${API_BASE_URL}/api/family-profiles`);
+  if (!response.ok) {
+    throw new Error("Failed to fetch family profiles");
+  }
+  return response.json();
+}

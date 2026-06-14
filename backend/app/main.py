@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import DATA_DIR
 from app.models import (
-    CartMode, GenerateCartRequest, GenerateCartResponse, StressParams,
+    CartMode, Constraints, GenerateCartRequest, GenerateCartResponse, StressParams,
 )
 from app.intent_parser import parse_need, NEED_TEMPLATES
 
@@ -25,6 +25,10 @@ from app.scoring import compute_scores
 # Load catalog once at startup
 with open(DATA_DIR / "catalog.json", "r", encoding="utf-8") as f:
     CATALOG: list[dict] = json.load(f)
+
+# Load family profiles
+with open(DATA_DIR / "family_profiles.json", "r", encoding="utf-8") as f:
+    FAMILY_PROFILES: dict = json.load(f)
 
 app = FastAPI(
     title="NeedCart Backend",
@@ -98,6 +102,12 @@ def get_catalog():
     return CATALOG
 
 
+@app.get("/api/family-profiles")
+def get_family_profiles():
+    """Return available family/household profiles."""
+    return FAMILY_PROFILES
+
+
 @app.post("/api/generate-cart", response_model=GenerateCartResponse)
 def generate_cart(request: GenerateCartRequest):
     """
@@ -113,12 +123,25 @@ def generate_cart(request: GenerateCartRequest):
             override_urgency=request.stress.override_urgency_minutes,
         )
 
+        # Apply family profile dietary override if relevant
+        profile = FAMILY_PROFILES.get(request.household_profile_id or "default", {})
+        if profile.get("dietary_preference") and request.household_profile_id and request.household_profile_id != "default":
+            # Profile dietary preference overrides parser defaults
+            # This ensures non_veg_family gets non-veg items for breakfast_rush etc.
+            constraints = Constraints(
+                budget=constraints.budget,
+                people_count=constraints.people_count,
+                urgency_minutes=constraints.urgency_minutes,
+                dietary_preference=profile["dietary_preference"],
+            )
+
         # Build the cart
         items, replacements, skipped, rescue_triggered = build_cart(
             intent=intent,
             constraints=constraints,
             mode=request.mode,
             stress=request.stress,
+            household_profile=profile if (request.household_profile_id and request.household_profile_id != "default") else None,
         )
 
         # Get template for category checks
