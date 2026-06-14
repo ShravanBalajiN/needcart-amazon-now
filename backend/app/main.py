@@ -75,7 +75,21 @@ def _sanitize_text(text: str) -> str:
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
+@app.get("/")
+def root():
+    return {
+        "status": "ok",
+        "service": "NeedCart Backend",
+        "message": "NeedCart API is running"
+    }
 
+
+@app.get("/health")
+def health():
+    return {
+        "status": "healthy",
+        "service": "NeedCart Backend"
+    }
 
 @app.get("/health")
 def health_check():
