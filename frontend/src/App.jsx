@@ -17,7 +17,7 @@ const DEFAULT_STRESS = {
 };
 
 export default function App() {
-  const [need, setNeed] = useState(() => localStorage.getItem("nc_need") || "");
+  const [need, setNeed] = useState("");
   const [mode, setMode] = useState(() => localStorage.getItem("nc_mode") || "balanced");
   const [profile, setProfile] = useState(() => localStorage.getItem("nc_profile") || "default");
   const [stress, setStress] = useState(DEFAULT_STRESS);
@@ -31,13 +31,14 @@ export default function App() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Clean up stale prompt from localStorage (no longer persisted)
+    localStorage.removeItem("nc_need");
     healthCheck()
       .then(() => setBackendUp(true))
       .catch(() => setBackendUp(false));
   }, []);
 
-  // Persist preferences
-  useEffect(() => { localStorage.setItem("nc_need", need); }, [need]);
+  // Persist preferences (mode & profile only — need resets on refresh)
   useEffect(() => { localStorage.setItem("nc_mode", mode); }, [mode]);
   useEffect(() => { localStorage.setItem("nc_profile", profile); }, [profile]);
 
