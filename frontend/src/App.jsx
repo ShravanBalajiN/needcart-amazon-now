@@ -1,35 +1,12 @@
 import { useState, useEffect } from "react";
-import {
-  ShoppingBag,
-  AlertTriangle,
-  IndianRupee,
-  Users,
-  Clock,
-  Leaf,
-  Truck,
-  Package,
-  Users as UsersIcon,
-  Coffee,
-  Thermometer,
-  Zap,
-  Flame,
-  Moon,
-  ShoppingCart,
-} from "lucide-react";
+import { Routes, Route, useNavigate } from "react-router-dom";
 import { healthCheck, generateCart } from "./api";
-import NeedInput from "./components/NeedInput";
-import ScenarioChips from "./components/ScenarioChips";
-import CartModeSelector from "./components/CartModeSelector";
-import FamilyProfileSelector from "./components/FamilyProfileSelector";
-import StressTestPanel from "./components/StressTestPanel";
-import CartHealthScore from "./components/CartHealthScore";
-import CartItemCard from "./components/CartItemCard";
-import ReplacementPanel from "./components/ReplacementPanel";
-import SkippedItemsPanel from "./components/SkippedItemsPanel";
-import CheckoutMock from "./components/CheckoutMock";
-import WhyThisCart from "./components/WhyThisCart";
-import PredictiveCards from "./components/PredictiveCards";
-import EcosystemRoadmap from "./components/EcosystemRoadmap";
+import Navbar from "./components/Navbar";
+import Footer from "./components/Footer";
+import HomePage from "./pages/HomePage";
+import BuildPage from "./pages/BuildPage";
+import CartPage from "./pages/CartPage";
+import RoadmapPage from "./pages/RoadmapPage";
 
 const DEFAULT_STRESS = {
   override_budget: null,
@@ -38,20 +15,10 @@ const DEFAULT_STRESS = {
   simulate_stockout_groups: [],
 };
 
-const INTENT_DISPLAY = {
-  guests_arriving: { label: "Guests Arriving", icon: UsersIcon, color: "text-blue-600" },
-  breakfast_rush: { label: "Breakfast Rush", icon: Coffee, color: "text-amber-600" },
-  child_fever_essentials: { label: "Child Fever Essentials", icon: Thermometer, color: "text-red-600" },
-  power_cut: { label: "Power Cut Emergency", icon: Zap, color: "text-yellow-600" },
-  pooja_items: { label: "Pooja Items", icon: Flame, color: "text-orange-600" },
-  late_night_hunger: { label: "Late Night Hunger", icon: Moon, color: "text-purple-600" },
-  general_urgent_need: { label: "Urgent Household Need", icon: Package, color: "text-gray-600" },
-};
-
 export default function App() {
-  const [need, setNeed] = useState("");
-  const [mode, setMode] = useState("balanced");
-  const [profile, setProfile] = useState("default");
+  const [need, setNeed] = useState(() => localStorage.getItem("nc_need") || "");
+  const [mode, setMode] = useState(() => localStorage.getItem("nc_mode") || "balanced");
+  const [profile, setProfile] = useState(() => localStorage.getItem("nc_profile") || "default");
   const [stress, setStress] = useState(DEFAULT_STRESS);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -60,18 +27,25 @@ export default function App() {
   const [cartItems, setCartItems] = useState([]);
   const [removedItems, setRemovedItems] = useState([]);
 
+  const navigate = useNavigate();
+
   useEffect(() => {
     healthCheck()
       .then(() => setBackendUp(true))
       .catch(() => setBackendUp(false));
   }, []);
 
+  // Persist preferences
+  useEffect(() => { localStorage.setItem("nc_need", need); }, [need]);
+  useEffect(() => { localStorage.setItem("nc_mode", mode); }, [mode]);
+  useEffect(() => { localStorage.setItem("nc_profile", profile); }, [profile]);
+
   const resetLocalCartState = () => {
     setRemovedItems([]);
   };
 
   const handleSubmit = async () => {
-    if (!need.trim()) return;
+    if (!need.trim()) return false;
     setLoading(true);
     setError(null);
     setResult(null);
@@ -84,22 +58,24 @@ export default function App() {
       stress,
       household_profile_id: profile,
     };
-    console.log("Selected household profile:", profile);
-    console.log("Generate cart payload:", payload);
 
     try {
       const data = await generateCart(payload);
       setResult(data);
       setCartItems(data.items || []);
+      setLoading(false);
+      return true;
     } catch {
       setError("Could not build cart right now. Please try again.");
-    } finally {
       setLoading(false);
+      return false;
     }
   };
 
   const handleRebuild = () => {
-    if (need.trim()) handleSubmit();
+    if (need.trim()) {
+      handleSubmit().then((ok) => { if (ok) navigate("/cart"); });
+    }
   };
 
   const handleSwap = (originalItem, alternative) => {
@@ -122,7 +98,6 @@ export default function App() {
     setCartItems((prev) => [...prev, itemToRestore]);
   };
 
-  // Reset local cart state when key inputs change
   const handleNeedChange = (val) => {
     setNeed(val);
   };
@@ -140,289 +115,43 @@ export default function App() {
   const cartTotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Header */}
-      <header className="bg-[#131921] border-b border-[#232f3e]">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <ShoppingBag className="w-7 h-7 text-[#ff9900]" />
-            <span className="text-xl font-bold text-white tracking-tight">NeedCart</span>
-            <span className="hidden sm:inline-flex px-2 py-0.5 text-[10px] font-medium bg-[#232f3e] text-[#febd69] rounded-full border border-[#febd69]/30">
-              Amazon Now Concept
-            </span>
-          </div>
-          <span className="text-xs text-gray-400 hidden sm:block">Urgency-to-Cart Engine</span>
-        </div>
-      </header>
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <Navbar />
 
-      <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
-        {/* Backend error */}
-        {!backendUp && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
-            <AlertTriangle className="w-5 h-5 text-red-500 shrink-0" />
-            <div>
-              <p className="text-sm font-medium text-red-800">Backend is not reachable</p>
-              <p className="text-xs text-red-600">Make sure the backend is running on port 8000.</p>
-            </div>
-          </div>
-        )}
-
-        {/* Hero Section: Input (left) + Predictive (right) */}
-        <section className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-            {/* Left: Input area - 65% */}
-            <div className="lg:col-span-3">
-              <h1 className="text-2xl font-bold text-gray-900 mb-1">
-                Tell us what happened. We'll build the cart.
-              </h1>
-              <p className="text-sm text-gray-500 mb-5">
-                NeedCart turns urgent situations into checkout-ready Amazon Now carts in seconds.
-              </p>
-              <NeedInput
-                value={need}
-                onChange={handleNeedChange}
-                onSubmit={handleSubmit}
-                onVoice={(t) => handleNeedChange(t)}
-                loading={loading}
+      <main className="flex-1 max-w-7xl mx-auto px-4 w-full">
+        <Routes>
+          <Route
+            path="/"
+            element={<HomePage onSelectPrompt={(p) => { setNeed(p); }} />}
+          />
+          <Route
+            path="/build"
+            element={
+              <BuildPage
+                need={need} onNeedChange={handleNeedChange}
+                mode={mode} onModeChange={handleModeChange}
+                profile={profile} onProfileChange={handleProfileChange}
+                stress={stress} onStressChange={setStress}
+                loading={loading} error={error} backendUp={backendUp}
+                onSubmit={handleSubmit} onRebuild={handleRebuild}
               />
-            </div>
-            {/* Right: Predictive NeedCart - 35% */}
-            <div className="lg:col-span-2 lg:border-l lg:border-gray-100 lg:pl-6">
-              <PredictiveCards onSelect={(p) => handleNeedChange(p)} disabled={loading} />
-            </div>
-          </div>
-        </section>
-
-        {/* Scenarios + Mode + Profile + Stress */}
-        <section className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-          <div className="lg:col-span-3 space-y-4">
-            <ScenarioChips onSelect={(p) => handleNeedChange(p)} disabled={loading} selected={need} />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <CartModeSelector selected={mode} onChange={handleModeChange} disabled={loading} />
-              <FamilyProfileSelector selected={profile} onChange={handleProfileChange} disabled={loading} />
-            </div>
-          </div>
-          <div className="lg:col-span-1">
-            <StressTestPanel stress={stress} onChange={setStress} onRebuild={handleRebuild} disabled={loading || !need.trim()} />
-          </div>
-        </section>
-
-        {/* Error */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3 animate-fadeIn">
-            <AlertTriangle className="w-5 h-5 text-red-500 shrink-0" />
-            <p className="text-sm text-red-700">{error}</p>
-          </div>
-        )}
-
-        {/* Loading */}
-        {loading && (
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-12 text-center animate-fadeIn">
-            <div className="inline-block w-10 h-10 border-3 border-[#ff9900] border-t-transparent rounded-full animate-spin mb-4" />
-            <p className="text-gray-700 font-medium">Understanding need...</p>
-            <p className="text-sm text-gray-400 mt-1">Checking budget, stock, ETA and essentials...</p>
-          </div>
-        )}
-
-        {/* Empty state */}
-        {!result && !loading && !error && (
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-12 text-center">
-            <ShoppingCart className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-600 font-medium">Your urgent cart will appear here</p>
-            <p className="text-sm text-gray-400 mt-1">Try one of the demo situations or describe your own.</p>
-          </div>
-        )}
-
-        {/* Results */}
-        {result && !loading && (
-          <div className="animate-fadeIn grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left column: Cart items */}
-            <div className="lg:col-span-2 space-y-4">
-              <IntentCard result={result} />
-              <WhyThisCart result={result} />
-
-              {cartItems.length > 0 && (
-                <div className="space-y-2">
-                  <h3 className="text-sm font-semibold text-gray-700">Cart Items ({cartItems.length})</h3>
-                  {cartItems.map((item, idx) => (
-                    <CartItemCard
-                      key={item.id + item.name + idx}
-                      item={item}
-                      onSwap={handleSwap}
-                      onRemove={handleRemove}
-                      isPersonalized={
-                        item.is_personalized === true ||
-                        !!item.personalization_reason ||
-                        (item.reason && (
-                          item.reason.includes("Personalized pick") ||
-                          item.reason.includes("Preferred by") ||
-                          item.reason.includes("Matches")
-                        ))
-                      }
-                    />
-                  ))}
-                </div>
-              )}
-
-              {/* Removed Items */}
-              {removedItems.length > 0 && (
-                <div className="bg-gray-50 rounded-xl border border-gray-200 p-3">
-                  <h4 className="text-xs font-semibold text-gray-500 mb-2">Removed Items ({removedItems.length})</h4>
-                  <div className="space-y-1">
-                    {removedItems.map((item, idx) => (
-                      <div key={item.id + item.name + idx} className="flex items-center justify-between py-1">
-                        <span className="text-xs text-gray-500 line-through">{item.name} - ₹{item.price}</span>
-                        <button
-                          onClick={() => handleUndoRemove(item)}
-                          className="text-[10px] font-medium text-blue-600 hover:text-blue-700 px-2 py-0.5 rounded bg-blue-50 hover:bg-blue-100"
-                        >
-                          Undo
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <ReplacementPanel replacements={result.replacements} />
-              <SkippedItemsPanel skippedItems={result.skipped_items} />
-            </div>
-
-            {/* Right column: Summary */}
-            <div className="lg:col-span-1">
-              <div className="sticky top-6 space-y-4">
-                <CartSummary result={result} cartTotal={cartTotal} />
-                <CheckoutMock
-                  checkoutReady={result.checkout_ready}
-                  totalPrice={cartTotal}
-                  eta={result.eta_minutes}
-                  itemCount={cartItems.length}
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Ecosystem Roadmap */}
-        <EcosystemRoadmap />
+            }
+          />
+          <Route
+            path="/cart"
+            element={
+              <CartPage
+                result={result} cartItems={cartItems} removedItems={removedItems}
+                onSwap={handleSwap} onRemove={handleRemove} onUndoRemove={handleUndoRemove}
+                cartTotal={cartTotal}
+              />
+            }
+          />
+          <Route path="/roadmap" element={<RoadmapPage />} />
+        </Routes>
       </main>
+
+      <Footer />
     </div>
-  );
-}
-
-function IntentCard({ result }) {
-  const intentInfo = INTENT_DISPLAY[result.detected_intent] || INTENT_DISPLAY.general_urgent_need;
-  const Icon = intentInfo.icon;
-
-  const excluded = result.constraints?.excluded_items || [];
-  const requested = result.constraints?.requested_extra_items || [];
-  const hasPreferences = excluded.length > 0 || requested.length > 0;
-
-  return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4">
-      <div className="flex items-center gap-3 mb-3">
-        <div className="p-2 rounded-lg bg-gray-50">
-          <Icon className={`w-5 h-5 ${intentInfo.color}`} />
-        </div>
-        <div>
-          <p className="text-xs text-gray-500 font-medium">Need Detected</p>
-          <p className="text-sm font-bold text-gray-900">{intentInfo.label}</p>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <ConstraintPill icon={IndianRupee} label="Budget" value={result.constraints?.budget ? `₹${result.constraints.budget}` : "-"} />
-        <ConstraintPill icon={Users} label="People" value={result.constraints?.people_count ?? "-"} />
-        <ConstraintPill icon={Clock} label="Urgency" value={result.constraints?.urgency_minutes ? `${result.constraints.urgency_minutes} min` : "-"} />
-        <ConstraintPill icon={Leaf} label="Diet" value={result.constraints?.dietary_preference || "Any"} />
-      </div>
-      {hasPreferences && (
-        <div className="mt-3 pt-3 border-t border-gray-100">
-          <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-1.5">User Preferences</p>
-          <div className="flex flex-wrap gap-1.5">
-            {excluded.map((item) => (
-              <span key={item} className="inline-flex items-center px-2 py-0.5 text-[10px] font-medium bg-red-50 text-red-600 rounded-full border border-red-100">
-                Avoiding: {item}
-              </span>
-            ))}
-            {requested.map((item) => (
-              <span key={item} className="inline-flex items-center px-2 py-0.5 text-[10px] font-medium bg-green-50 text-green-600 rounded-full border border-green-100">
-                Requested: {item}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ConstraintPill({ icon: Icon, label, value }) {
-  return (
-    <div className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2">
-      <Icon className="w-3.5 h-3.5 text-gray-400" />
-      <div>
-        <p className="text-[10px] text-gray-400">{label}</p>
-        <p className="text-xs font-semibold text-gray-700">{value}</p>
-      </div>
-    </div>
-  );
-}
-
-function CartSummary({ result, cartTotal }) {
-  return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-      <h3 className="text-sm font-bold text-gray-900 mb-3">Cart Summary</h3>
-      <StatusBadge status={result.cart_status} />
-
-      <div className="mt-4 space-y-2">
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-gray-600">Total</span>
-          <span className="text-lg font-bold text-gray-900">₹{cartTotal}</span>
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-gray-600">Delivery ETA</span>
-          <span className="text-sm font-semibold text-gray-700 flex items-center gap-1">
-            <Truck className="w-3.5 h-3.5" />
-            {result.eta_minutes} min
-          </span>
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-gray-600">Status</span>
-          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${result.checkout_ready ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-            {result.checkout_ready ? "Checkout Ready" : "Not Ready"}
-          </span>
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-gray-600">Mode</span>
-          <span className="text-xs font-medium text-gray-700">{result.cart_mode}</span>
-        </div>
-      </div>
-
-      <p className="mt-4 text-xs text-gray-500 leading-relaxed border-t border-gray-100 pt-3">
-        {result.summary}
-      </p>
-
-      <div className="mt-4 border-t border-gray-100 pt-3">
-        <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wide mb-2">Order Readiness</p>
-        <CartHealthScore scores={result.scores} />
-      </div>
-    </div>
-  );
-}
-
-function StatusBadge({ status }) {
-  const styles = {
-    "Complete Cart": "bg-green-100 text-green-700 border-green-200",
-    "Budget-Optimized Cart": "bg-blue-100 text-blue-700 border-blue-200",
-    "Substituted Cart": "bg-amber-100 text-amber-700 border-amber-200",
-    "Rescue Cart": "bg-orange-100 text-orange-700 border-orange-200",
-    "Partial Cart": "bg-red-100 text-red-700 border-red-200",
-  };
-  const cls = styles[status] || "bg-gray-100 text-gray-700 border-gray-200";
-
-  return (
-    <span className={`inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full border ${cls}`}>
-      {status}
-    </span>
   );
 }
