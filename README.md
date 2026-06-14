@@ -829,6 +829,10 @@ Frontend production build:
 cd frontend
 npm run build
 ```
+Latest local production build status:
+
+```txt
+npm run build ✅
 
 ---
 
@@ -935,9 +939,9 @@ Urgency-to-cart engine with LLM parsing, rule fallback, deterministic optimizer,
 
 Personalized household carts based on brand, dietary, budget, and lifestyle preferences.
 
-### Phase 3 — Predictive Shopping Intelligence
+### Phase 3 — Predictive Shopping Intelligence | Future Vision
 
-Event-based, seasonal, recurring and routine-driven proactive cart suggestions.
+Future capability: time-of-day signals, repeat purchase patterns, festivals and event-based cart suggestions.
 
 Examples:
 
@@ -947,9 +951,9 @@ Sunday morning → Breakfast Essentials
 Festival prep → Pooja Cart
 ```
 
-### Phase 4 — Amazon Ecosystem Integration
+### Phase 4 — Alexa, Prime & Amazon Pay | Future Vision
 
-Future integrations:
+Future capability: voice-first ordering, Prime-based personalization, purchase history signals and one-tap checkout.
 
 * Alexa trigger
 * Prime personalization
