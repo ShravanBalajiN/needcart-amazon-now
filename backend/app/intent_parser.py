@@ -274,6 +274,134 @@ def extract_dietary(text: str) -> Optional[str]:
 
 
 # ---------------------------------------------------------------------------
+# User explicit product preferences extraction
+# ---------------------------------------------------------------------------
+
+# Aliases map common names to normalized product keywords
+_PRODUCT_ALIASES: dict[str, list[str]] = {
+    "coke": ["cola", "coca cola", "coke"],
+    "coca cola": ["cola", "coca cola", "coke"],
+    "pepsi": ["pepsi"],
+    "sprite": ["sprite"],
+    "chips": ["chips", "lays", "kurkure"],
+    "lays": ["lays"],
+    "kurkure": ["kurkure"],
+    "biscuits": ["biscuits", "cookies"],
+    "good day": ["good day"],
+    "water": ["water", "mineral water"],
+    "milk": ["milk"],
+    "bread": ["bread"],
+    "eggs": ["eggs", "egg"],
+    "egg": ["eggs", "egg"],
+    "candles": ["candles"],
+    "torch": ["torch"],
+    "batteries": ["batteries", "battery"],
+    "matchbox": ["matchbox"],
+    "pooja items": ["pooja", "puja"],
+    "agarbatti": ["agarbatti", "incense"],
+    "camphor": ["camphor"],
+    "diya": ["diya"],
+    "noodles": ["noodles", "instant noodles"],
+    "juice": ["juice"],
+    "chocolate": ["chocolate"],
+    "paneer": ["paneer"],
+    "curd": ["curd", "yogurt"],
+    "oats": ["oats"],
+    "poha": ["poha"],
+    "samosa": ["samosa"],
+    "paracetamol": ["paracetamol"],
+    "ibuprofen": ["ibuprofen"],
+    "medicine": ["medicine", "paracetamol", "ibuprofen", "cough syrup"],
+    "thumbs up": ["thumbs up"],
+}
+
+
+def extract_excluded_items(text: str) -> list[str]:
+    """
+    Extract items the user explicitly does NOT want.
+    Supports: don't add X, do not add X, no X, avoid X, without X, exclude X, remove X, don't include X
+    """
+    lower = text.lower()
+    excluded = []
+
+    # Patterns that capture what comes after the exclusion phrase
+    exclusion_patterns = [
+        r"(?:don'?t|do\s*not|dont)\s+(?:add|include|want|put)\s+(\w+(?:\s+\w+)?)",
+        r"(?:avoid|without|exclude)\s+(\w+(?:\s+\w+)?)",
+        r"i\s+don'?t\s+want\s+(\w+(?:\s+\w+)?)",
+        r"\bno\s+(\w+)\b",
+    ]
+
+    for pattern in exclusion_patterns:
+        for match in re.finditer(pattern, lower):
+            raw_item = match.group(1).strip()
+            # Remove trailing noise words
+            raw_item = re.sub(r"\s+(?:please|thanks|also|extra|in|from|the|my|cart|order)$", "", raw_item)
+            raw_item = raw_item.strip()
+            if raw_item and len(raw_item) < 30 and raw_item not in ("need", "want", "the", "it", "one"):
+                # Resolve aliases
+                if raw_item in _PRODUCT_ALIASES:
+                    excluded.extend(_PRODUCT_ALIASES[raw_item])
+                else:
+                    excluded.append(raw_item)
+
+    return list(set(excluded))
+
+
+def extract_requested_extra_items(text: str) -> list[str]:
+    """
+    Extract items the user explicitly wants added.
+    Supports: add X, add X extra, also add X, include X, must include X, I want X, need X also
+    Important: Must not match "don't add X" patterns.
+    """
+    lower = text.lower()
+    requested = []
+
+    # First, identify exclusion zones to avoid matching them as inclusions
+    exclusion_zone_pattern = r"(?:don'?t|do\s*not|dont|no|avoid|without|exclude|i\s+don'?t\s+want)\s+(?:add|include|want|put)?\s*\w+"
+
+    # Patterns that capture what the user wants added
+    # Use negative lookbehind to avoid matching "don't add X"
+    inclusion_patterns = [
+        r"(?<!don't\s)(?<!dont\s)(?<!not\s)(?:also\s+)?(?:add|include)\s+(\w+(?:\s+\w+)?)(?:\s+extra)?",
+        r"must\s+(?:add|include|have)\s+(\w+(?:\s+\w+)?)",
+        r"i\s+want\s+(\w+(?:\s+\w+)?)",
+        r"need\s+(\w+)\s+also",
+    ]
+
+    # Find exclusion spans to avoid
+    exclusion_spans = []
+    for match in re.finditer(exclusion_zone_pattern, lower):
+        exclusion_spans.append((match.start(), match.end()))
+
+    def _in_exclusion_zone(pos: int) -> bool:
+        for start, end in exclusion_spans:
+            if start <= pos <= end:
+                return True
+        return False
+
+    for pattern in inclusion_patterns:
+        for match in re.finditer(pattern, lower):
+            if _in_exclusion_zone(match.start()):
+                continue
+            raw_item = match.group(1).strip()
+            # Remove trailing noise words
+            raw_item = re.sub(r"\s+(?:please|thanks|also|extra|in|from|the|my|cart|order)$", "", raw_item)
+            raw_item = raw_item.strip()
+            if raw_item and len(raw_item) < 30 and raw_item not in ("need", "want", "the", "it", "one", "snacks and", "quick breakfast", "safe essentials"):
+                # Skip items that are clearly sentence fragments
+                if any(phrase in raw_item for phrase in ["snacks and drinks", "quick breakfast", "safe essentials", "emergency supplies"]):
+                    continue
+                # Resolve aliases
+                if raw_item in _PRODUCT_ALIASES:
+                    requested.extend(_PRODUCT_ALIASES[raw_item])
+                else:
+                    requested.append(raw_item)
+
+    return list(set(requested))
+
+
+# ---------------------------------------------------------------------------
 # Main parse functions
 # ---------------------------------------------------------------------------
 
@@ -344,11 +472,25 @@ def parse_need(text: str, override_budget: Optional[float] = None,
         if dietary is None and intent in ("guests_arriving", "pooja_items", "breakfast_rush"):
             dietary = "veg"
 
+        # Extract user explicit preferences (always from regex - LLM may miss these)
+        excluded = extract_excluded_items(text)
+        requested_extra = extract_requested_extra_items(text)
+
+        # Also use LLM extracted preferences if available
+        llm_excluded = llm_result.get("excluded_items", [])
+        llm_requested = llm_result.get("requested_extra_items", [])
+        if llm_excluded:
+            excluded = list(set(excluded + llm_excluded))
+        if llm_requested:
+            requested_extra = list(set(requested_extra + llm_requested))
+
         constraints = Constraints(
             budget=budget,
             people_count=people,
             urgency_minutes=urgency,
             dietary_preference=dietary,
+            excluded_items=excluded,
+            requested_extra_items=requested_extra,
         )
 
         _log_parse_result(text, parser_source, intent, constraints)
@@ -380,11 +522,17 @@ def _parse_need_regex(text: str, override_budget: Optional[float] = None,
     if dietary is None and intent in ("guests_arriving", "pooja_items", "breakfast_rush"):
         dietary = "veg"
 
+    # Extract user explicit preferences
+    excluded = extract_excluded_items(text)
+    requested_extra = extract_requested_extra_items(text)
+
     constraints = Constraints(
         budget=budget,
         people_count=people,
         urgency_minutes=urgency,
         dietary_preference=dietary,
+        excluded_items=excluded,
+        requested_extra_items=requested_extra,
     )
 
     _log_parse_result(text, parser_source, intent, constraints)

@@ -60,10 +60,13 @@ SYSTEM_PROMPT = (
     "Extract budget from words and numbers (e.g. 'five hundred' = 500, 'under 300' = 300).\n"
     "Extract urgency from phrases like 'half an hour' = 30, 'in 15 minutes' = 15, 'quickly' = 15, 'now' = 10.\n"
     "Extract people count from words and numbers (e.g. 'six people' = 6, 'for 3' = 3).\n"
-    "If a field is missing or unclear, use null.\n\n"
+    "Extract excluded_items: products the user explicitly does NOT want (e.g. 'don't add Sprite' -> ['sprite']).\n"
+    "Extract requested_extra_items: products the user explicitly wants added (e.g. 'add Pepsi extra' -> ['pepsi']).\n"
+    "If a field is missing or unclear, use null or empty array.\n\n"
     "Output this exact JSON structure:\n"
     '{"intent": "string", "budget": number_or_null, "people_count": number_or_null, '
     '"urgency_minutes": number_or_null, "dietary_preference": "veg" or "non-veg" or null, '
+    '"excluded_items": ["string"], "requested_extra_items": ["string"], '
     '"requested_items": ["category strings"], "confidence": 0.0_to_1.0}'
 )
 
@@ -231,5 +234,7 @@ def _validate_response(data: dict) -> Optional[dict]:
         "urgency_minutes": urgency_minutes,
         "dietary_preference": dietary,
         "requested_items": data.get("requested_items", []),
+        "excluded_items": data.get("excluded_items", []),
+        "requested_extra_items": data.get("requested_extra_items", []),
         "confidence": confidence,
     }

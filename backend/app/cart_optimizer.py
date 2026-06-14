@@ -168,12 +168,37 @@ def _sanitize_text(text: str) -> str:
     return text
 
 
+# Category to image path mapping for fallback thumbnails
+_CATEGORY_IMAGES: dict[str, str] = {
+    "snacks": "/product-images/snacks.svg",
+    "beverages": "/product-images/beverages.svg",
+    "breakfast": "/product-images/breakfast.svg",
+    "emergency": "/product-images/emergency.svg",
+    "pooja": "/product-images/pooja.svg",
+    "health_essentials": "/product-images/health.svg",
+    "household": "/product-images/household.svg",
+    "dairy": "/product-images/dairy.svg",
+    "bakery": "/product-images/bakery.svg",
+    "sweet_snacks": "/product-images/snacks.svg",
+    "disposables": "/product-images/household.svg",
+    "baby": "/product-images/health.svg",
+    "personal_care": "/product-images/household.svg",
+}
+
+
+def _get_category_image(category: str) -> str:
+    """Get fallback image URL for a product category."""
+    return _CATEGORY_IMAGES.get(category, "/product-images/default.svg")
+
+
 def build_cart(
     intent: str,
     constraints: Constraints,
     mode: CartMode,
     stress: StressParams,
     household_profile: dict | None = None,
+    excluded_items: list[str] | None = None,
+    requested_extra_items: list[str] | None = None,
 ) -> tuple[list[CartItem], list[Replacement], list[SkippedItem], bool]:
     """
     Build the optimized cart.
@@ -185,6 +210,31 @@ def build_cart(
     forgotten_categories = template.get("forgotten_essentials", [])
     blocked_groups = set(template.get("blocked_substitute_groups", []))
     forgotten_reason = template.get("forgotten_essential_reason", "Forgotten essential.")
+
+    budget = constraints.budget or 9999
+    dietary = constraints.dietary_preference
+    urgency = constraints.urgency_minutes
+
+    # User explicit exclusions/inclusions
+    user_excluded = [e.lower() for e in (excluded_items or [])]
+    user_requested = [r.lower() for r in (requested_extra_items or [])]
+
+    # Safety-blocked keywords (medicine items for child_fever)
+    _SAFETY_BLOCKED_KEYWORDS = ["paracetamol", "ibuprofen", "cough syrup", "medicine",
+                                 "vicks", "balm", "tablet", "syrup"]
+
+    def _is_user_excluded(product: dict) -> bool:
+        """Check if product is explicitly excluded by user."""
+        if not user_excluded:
+            return False
+        name_lower = product["name"].lower()
+        cat_lower = product.get("category", "").lower()
+        for excl in user_excluded:
+            if excl in name_lower:
+                return True
+            if excl == cat_lower:
+                return True
+        return False
 
     budget = constraints.budget or 9999
     dietary = constraints.dietary_preference
@@ -313,6 +363,9 @@ def build_cart(
                     personalized = True
                     p_reason = personalization_reason or "Budget-friendly pick for this household."
 
+        # Resolve image URL
+        image_url = product.get("image_url") or _get_category_image(product.get("category", ""))
+
         cart_items.append(CartItem(
             id=product["id"],
             name=product["name"],
@@ -324,11 +377,46 @@ def build_cart(
             is_forgotten_essential=is_forgotten,
             is_personalized=personalized,
             personalization_reason=p_reason,
+            image_url=image_url,
         ))
         total += item_cost
         added_ids.add(product["id"])
         covered_categories.add(product["category"])
         covered_groups.add(product.get("substitute_group", ""))
+
+    def _find_substitute_non_excluded(product: dict, stress: StressParams, dietary: Optional[str],
+                                       budget_remaining: float, urgency_minutes_val: Optional[int] = None) -> Optional[dict]:
+        """Find a substitute that is not user-excluded."""
+        candidates = []
+        group = product.get("substitute_group")
+        if group:
+            candidates = [
+                p for p in CATALOG
+                if p["substitute_group"] == group
+                and p["id"] != product["id"]
+                and _is_available(p, stress)
+                and _matches_dietary(p, dietary)
+                and p["price"] <= budget_remaining
+                and not _is_user_excluded(p)
+            ]
+        if not candidates:
+            candidates = [
+                p for p in CATALOG
+                if p["category"] == product["category"]
+                and p["id"] != product["id"]
+                and _is_available(p, stress)
+                and _matches_dietary(p, dietary)
+                and p["price"] <= budget_remaining
+                and not _is_user_excluded(p)
+            ]
+        if not candidates:
+            return None
+        if urgency_minutes_val:
+            eta_filtered = [p for p in candidates if p["eta_minutes"] <= urgency_minutes_val]
+            if eta_filtered:
+                candidates = eta_filtered
+        candidates.sort(key=lambda p: abs(p["price"] - product["price"]))
+        return candidates[0]
 
     def _try_add_product(product: dict, is_forgotten: bool = False) -> bool:
         """Try to add a product to cart, handling stockouts with substitution."""
@@ -339,6 +427,36 @@ def build_cart(
 
         # Block products from blocked substitute groups
         if product.get("substitute_group") in blocked_groups:
+            return False
+
+        # Block user-excluded products
+        if _is_user_excluded(product):
+            # Try to find a non-excluded substitute
+            remaining = budget - total
+            sub = _find_substitute_non_excluded(product, stress, dietary, remaining, urgency)
+            if sub and sub["id"] not in added_ids and sub.get("substitute_group") not in blocked_groups:
+                qty = 1
+                item_cost = sub["price"] * qty
+                if total + item_cost <= budget:
+                    reason = f"Substituted for {product['name']} (excluded by user)."
+                    _add_item(sub, qty, reason, is_forgotten)
+                    replacements.append(Replacement(
+                        original_id=product["id"],
+                        original_name=product["name"],
+                        replacement_id=sub["id"],
+                        replacement_name=sub["name"],
+                        reason=_sanitize_text(
+                            f"{product['name']} excluded by user; replacement keeps the same need coverage."
+                        ),
+                        price_diff=sub["price"] - product["price"],
+                    ))
+                    return True
+            # No substitute, skip
+            skipped.append(SkippedItem(
+                id=product["id"],
+                name=product["name"],
+                reason=_sanitize_text(f"Excluded by user preference."),
+            ))
             return False
 
         if not _is_available(product, stress):
@@ -634,6 +752,78 @@ def build_cart(
                     continue
                 if total + product["price"] <= budget:
                     _try_add_product(product, is_forgotten=False)
+
+    # =========================================================================
+    # STEP 5b: Add user-requested extra items
+    # =========================================================================
+    if user_requested:
+        for req_item in user_requested:
+            # Safety check: block medicine requests for child_fever
+            if intent == "child_fever":
+                is_medicine = any(kw in req_item for kw in _SAFETY_BLOCKED_KEYWORDS)
+                if is_medicine:
+                    skipped.append(SkippedItem(
+                        id="SAFETY",
+                        name=req_item.title(),
+                        reason="Medication cannot be added in this demo cart. Please consult a doctor.",
+                    ))
+                    continue
+
+            # Find matching catalog product
+            candidates = [
+                p for p in CATALOG
+                if req_item in p["name"].lower()
+                and _is_available(p, stress)
+                and _matches_dietary(p, dietary)
+                and p["id"] not in added_ids
+                and p.get("substitute_group") not in blocked_groups
+            ]
+            if not candidates:
+                # Try broader match on category or substitute group
+                candidates = [
+                    p for p in CATALOG
+                    if (req_item in p.get("category", "").lower()
+                        or req_item in p.get("substitute_group", "").lower())
+                    and _is_available(p, stress)
+                    and _matches_dietary(p, dietary)
+                    and p["id"] not in added_ids
+                    and p.get("substitute_group") not in blocked_groups
+                ]
+
+            if candidates:
+                # Pick the best candidate (cheapest that fits budget in budget mode, otherwise best match)
+                if mode == CartMode.budget:
+                    candidates.sort(key=lambda p: p["price"])
+                else:
+                    candidates.sort(key=lambda p: (p["eta_minutes"] * 0.4 + p["price"] * 0.6))
+
+                added_requested = False
+                for candidate in candidates:
+                    if total + candidate["price"] <= budget:
+                        reason = f"Added per user request."
+                        _add_item(candidate, 1, reason, False)
+                        added_requested = True
+                        break
+                    elif mode in (CartMode.balanced, CartMode.complete) and total + candidate["price"] <= budget * 1.1:
+                        # Allow slight budget overrun for explicit requests in non-budget modes
+                        reason = f"Added per user request (slight budget stretch)."
+                        _add_item(candidate, 1, reason, False)
+                        added_requested = True
+                        break
+
+                if not added_requested:
+                    skipped.append(SkippedItem(
+                        id="REQ",
+                        name=req_item.title(),
+                        reason=f"Could not add {req_item} - exceeds budget.",
+                    ))
+            else:
+                # Not found in catalog or out of stock
+                skipped.append(SkippedItem(
+                    id="REQ",
+                    name=req_item.title(),
+                    reason=f"Could not add {req_item} - not available in catalog or out of stock.",
+                ))
 
     # =========================================================================
     # STEP 6: Budget enforcement - trim if over budget

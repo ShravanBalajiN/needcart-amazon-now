@@ -142,6 +142,8 @@ def generate_cart(request: GenerateCartRequest):
             mode=request.mode,
             stress=request.stress,
             household_profile=profile if (request.household_profile_id and request.household_profile_id != "default") else None,
+            excluded_items=constraints.excluded_items,
+            requested_extra_items=constraints.requested_extra_items,
         )
 
         # Get template for category checks

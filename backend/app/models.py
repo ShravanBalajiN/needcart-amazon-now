@@ -30,6 +30,8 @@ class Constraints(BaseModel):
     people_count: Optional[int] = None
     urgency_minutes: Optional[int] = None
     dietary_preference: Optional[str] = None
+    excluded_items: List[str] = Field(default_factory=list)
+    requested_extra_items: List[str] = Field(default_factory=list)
 
 
 class CartItem(BaseModel):
@@ -43,6 +45,7 @@ class CartItem(BaseModel):
     is_forgotten_essential: bool = False
     is_personalized: bool = False
     personalization_reason: Optional[str] = None
+    image_url: Optional[str] = None
 
 
 class Replacement(BaseModel):

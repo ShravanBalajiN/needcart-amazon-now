@@ -58,6 +58,7 @@ export default function App() {
   const [backendUp, setBackendUp] = useState(true);
   const [result, setResult] = useState(null);
   const [cartItems, setCartItems] = useState([]);
+  const [removedItems, setRemovedItems] = useState([]);
 
   useEffect(() => {
     healthCheck()
@@ -65,12 +66,17 @@ export default function App() {
       .catch(() => setBackendUp(false));
   }, []);
 
+  const resetLocalCartState = () => {
+    setRemovedItems([]);
+  };
+
   const handleSubmit = async () => {
     if (!need.trim()) return;
     setLoading(true);
     setError(null);
     setResult(null);
     setCartItems([]);
+    resetLocalCartState();
 
     const payload = {
       need: need.trim(),
@@ -104,6 +110,31 @@ export default function App() {
           : item
       )
     );
+  };
+
+  const handleRemove = (itemToRemove) => {
+    setCartItems((prev) => prev.filter((item) => !(item.id === itemToRemove.id && item.name === itemToRemove.name)));
+    setRemovedItems((prev) => [...prev, itemToRemove]);
+  };
+
+  const handleUndoRemove = (itemToRestore) => {
+    setRemovedItems((prev) => prev.filter((item) => !(item.id === itemToRestore.id && item.name === itemToRestore.name)));
+    setCartItems((prev) => [...prev, itemToRestore]);
+  };
+
+  // Reset local cart state when key inputs change
+  const handleNeedChange = (val) => {
+    setNeed(val);
+  };
+
+  const handleModeChange = (val) => {
+    setMode(val);
+    resetLocalCartState();
+  };
+
+  const handleProfileChange = (val) => {
+    setProfile(val);
+    resetLocalCartState();
   };
 
   const cartTotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -149,15 +180,15 @@ export default function App() {
               </p>
               <NeedInput
                 value={need}
-                onChange={setNeed}
+                onChange={handleNeedChange}
                 onSubmit={handleSubmit}
-                onVoice={(t) => setNeed(t)}
+                onVoice={(t) => handleNeedChange(t)}
                 loading={loading}
               />
             </div>
             {/* Right: Predictive NeedCart - 35% */}
             <div className="lg:col-span-2 lg:border-l lg:border-gray-100 lg:pl-6">
-              <PredictiveCards onSelect={(p) => setNeed(p)} disabled={loading} />
+              <PredictiveCards onSelect={(p) => handleNeedChange(p)} disabled={loading} />
             </div>
           </div>
         </section>
@@ -165,10 +196,10 @@ export default function App() {
         {/* Scenarios + Mode + Profile + Stress */}
         <section className="grid grid-cols-1 lg:grid-cols-4 gap-4">
           <div className="lg:col-span-3 space-y-4">
-            <ScenarioChips onSelect={(p) => setNeed(p)} disabled={loading} selected={need} />
+            <ScenarioChips onSelect={(p) => handleNeedChange(p)} disabled={loading} selected={need} />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <CartModeSelector selected={mode} onChange={setMode} disabled={loading} />
-              <FamilyProfileSelector selected={profile} onChange={setProfile} disabled={loading} />
+              <CartModeSelector selected={mode} onChange={handleModeChange} disabled={loading} />
+              <FamilyProfileSelector selected={profile} onChange={handleProfileChange} disabled={loading} />
             </div>
           </div>
           <div className="lg:col-span-1">
@@ -218,6 +249,7 @@ export default function App() {
                       key={item.id + item.name + idx}
                       item={item}
                       onSwap={handleSwap}
+                      onRemove={handleRemove}
                       isPersonalized={
                         item.is_personalized === true ||
                         !!item.personalization_reason ||
@@ -229,6 +261,26 @@ export default function App() {
                       }
                     />
                   ))}
+                </div>
+              )}
+
+              {/* Removed Items */}
+              {removedItems.length > 0 && (
+                <div className="bg-gray-50 rounded-xl border border-gray-200 p-3">
+                  <h4 className="text-xs font-semibold text-gray-500 mb-2">Removed Items ({removedItems.length})</h4>
+                  <div className="space-y-1">
+                    {removedItems.map((item, idx) => (
+                      <div key={item.id + item.name + idx} className="flex items-center justify-between py-1">
+                        <span className="text-xs text-gray-500 line-through">{item.name} - ₹{item.price}</span>
+                        <button
+                          onClick={() => handleUndoRemove(item)}
+                          className="text-[10px] font-medium text-blue-600 hover:text-blue-700 px-2 py-0.5 rounded bg-blue-50 hover:bg-blue-100"
+                        >
+                          Undo
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -262,6 +314,10 @@ function IntentCard({ result }) {
   const intentInfo = INTENT_DISPLAY[result.detected_intent] || INTENT_DISPLAY.general_urgent_need;
   const Icon = intentInfo.icon;
 
+  const excluded = result.constraints?.excluded_items || [];
+  const requested = result.constraints?.requested_extra_items || [];
+  const hasPreferences = excluded.length > 0 || requested.length > 0;
+
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-4">
       <div className="flex items-center gap-3 mb-3">
@@ -279,6 +335,23 @@ function IntentCard({ result }) {
         <ConstraintPill icon={Clock} label="Urgency" value={result.constraints?.urgency_minutes ? `${result.constraints.urgency_minutes} min` : "-"} />
         <ConstraintPill icon={Leaf} label="Diet" value={result.constraints?.dietary_preference || "Any"} />
       </div>
+      {hasPreferences && (
+        <div className="mt-3 pt-3 border-t border-gray-100">
+          <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-1.5">User Preferences</p>
+          <div className="flex flex-wrap gap-1.5">
+            {excluded.map((item) => (
+              <span key={item} className="inline-flex items-center px-2 py-0.5 text-[10px] font-medium bg-red-50 text-red-600 rounded-full border border-red-100">
+                Avoiding: {item}
+              </span>
+            ))}
+            {requested.map((item) => (
+              <span key={item} className="inline-flex items-center px-2 py-0.5 text-[10px] font-medium bg-green-50 text-green-600 rounded-full border border-green-100">
+                Requested: {item}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
