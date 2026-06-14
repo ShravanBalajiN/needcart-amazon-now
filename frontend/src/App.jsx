@@ -6,6 +6,7 @@ import Footer from "./components/Footer";
 import HomePage from "./pages/HomePage";
 import BuildPage from "./pages/BuildPage";
 import CartPage from "./pages/CartPage";
+import ImpactPage from "./pages/ImpactPage";
 import RoadmapPage from "./pages/RoadmapPage";
 
 const DEFAULT_STRESS = {
@@ -146,6 +147,10 @@ export default function App() {
                 cartTotal={cartTotal}
               />
             }
+          />
+          <Route
+            path="/impact"
+            element={<ImpactPage result={result} cartItems={cartItems} />}
           />
           <Route path="/roadmap" element={<RoadmapPage />} />
         </Routes>

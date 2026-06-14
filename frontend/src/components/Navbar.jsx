@@ -22,6 +22,7 @@ export default function Navbar() {
           <NavLink to="/" className={linkClass}>Home</NavLink>
           <NavLink to="/build" className={linkClass}>Build Cart</NavLink>
           <NavLink to="/cart" className={linkClass}>My Cart</NavLink>
+          <NavLink to="/impact" className={linkClass}>Impact</NavLink>
           <NavLink to="/roadmap" className={linkClass}>Roadmap</NavLink>
         </nav>
 
@@ -33,6 +34,7 @@ export default function Navbar() {
         <NavLink to="/" className={linkClass}>Home</NavLink>
         <NavLink to="/build" className={linkClass}>Build</NavLink>
         <NavLink to="/cart" className={linkClass}>Cart</NavLink>
+        <NavLink to="/impact" className={linkClass}>Impact</NavLink>
         <NavLink to="/roadmap" className={linkClass}>Roadmap</NavLink>
       </div>
     </header>

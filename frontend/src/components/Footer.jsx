@@ -24,6 +24,7 @@ export default function Footer() {
               <Link to="/" className="block text-xs text-gray-400 hover:text-[#ff9900] transition-colors">Home</Link>
               <Link to="/build" className="block text-xs text-gray-400 hover:text-[#ff9900] transition-colors">Build Cart</Link>
               <Link to="/cart" className="block text-xs text-gray-400 hover:text-[#ff9900] transition-colors">Cart Review</Link>
+              <Link to="/impact" className="block text-xs text-gray-400 hover:text-[#ff9900] transition-colors">Impact</Link>
               <Link to="/roadmap" className="block text-xs text-gray-400 hover:text-[#ff9900] transition-colors">Roadmap</Link>
             </div>
           </div>

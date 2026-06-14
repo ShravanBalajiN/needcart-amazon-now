@@ -401,29 +401,36 @@ export default function ProductThumbnail({ item, size = "md" }) {
 
   const sizeClasses = {
     sm: "w-14 h-14 rounded-xl",
-    md: "w-[72px] h-[72px] rounded-2xl",
-    lg: "w-20 h-20 rounded-2xl",
+    md: "w-[72px] h-[72px] rounded-[18px]",
+    lg: "w-20 h-20 rounded-[20px]",
   };
 
   const containerClass = sizeClasses[size] || sizeClasses.md;
 
   return (
     <div
-      className={`${containerClass} shrink-0 relative overflow-hidden shadow-sm border border-black/5`}
-      style={{ background: `linear-gradient(135deg, ${bg} 0%, white 100%)` }}
+      className={`${containerClass} shrink-0 relative overflow-hidden`}
+      style={{
+        background: `linear-gradient(145deg, ${bg} 0%, white 60%, ${bg}40 100%)`,
+        boxShadow: `0 2px 8px ${accent}15, 0 1px 3px rgba(0,0,0,0.06)`,
+        border: `1px solid ${accent}18`,
+      }}
     >
       {/* SVG illustration */}
       <svg
         viewBox="0 0 50 50"
-        className="absolute inset-0 w-full h-full"
+        className="absolute inset-0 w-full h-full p-1"
         xmlns="http://www.w3.org/2000/svg"
       >
         {renderShape(style, accent)}
       </svg>
 
-      {/* Subtle product initial overlay */}
+      {/* Subtle shine overlay */}
+      <div className="absolute inset-0 bg-gradient-to-br from-white/30 via-transparent to-transparent pointer-events-none" />
+
+      {/* Product initial badge */}
       <div
-        className="absolute bottom-0.5 right-1 text-[8px] font-bold opacity-30 select-none"
+        className="absolute bottom-0.5 right-1.5 text-[7px] font-extrabold opacity-25 select-none"
         style={{ color: accent }}
       >
         {label}

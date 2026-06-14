@@ -9,6 +9,7 @@ import ReplacementPanel from "../components/ReplacementPanel";
 import SkippedItemsPanel from "../components/SkippedItemsPanel";
 import CheckoutMock from "../components/CheckoutMock";
 import WhyThisCart from "../components/WhyThisCart";
+import { ImpactSnapshot } from "./ImpactPage";
 
 const INTENT_DISPLAY = {
   guests_arriving: { label: "Guests Arriving", icon: UsersIcon, color: "text-blue-600" },
@@ -124,6 +125,7 @@ export default function CartPage({
               eta={result.eta_minutes}
               itemCount={cartItems.length}
             />
+            <ImpactSnapshot result={result} cartItems={cartItems} />
           </div>
         </div>
       </div>

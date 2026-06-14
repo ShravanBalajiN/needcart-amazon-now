@@ -1,4 +1,4 @@
-import { Clock, Star, Sparkles, Trash2 } from "lucide-react";
+import { Clock, Star, Sparkles, Trash2, UserCheck } from "lucide-react";
 import SmartSwapButton from "./SmartSwap";
 import ProductThumbnail from "./ProductThumbnail";
 
@@ -13,6 +13,10 @@ export default function CartItemCard({ item, onSwap, onRemove, isPersonalized })
       item.reason.includes("Matches")
     ));
 
+  const showRequestedBadge =
+    item.is_user_requested === true ||
+    (item.reason && item.reason.includes("User-requested"));
+
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-all duration-200">
       <div className="flex items-start gap-3.5">
@@ -23,13 +27,19 @@ export default function CartItemCard({ item, onSwap, onRemove, isPersonalized })
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h4 className="text-sm font-semibold text-gray-900 leading-tight">{item.name}</h4>
+            {showRequestedBadge && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold bg-blue-100 text-blue-700 rounded-full border border-blue-200">
+                <UserCheck className="w-3 h-3" />
+                Requested
+              </span>
+            )}
             {item.is_forgotten_essential && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold bg-amber-100 text-amber-700 rounded-full">
                 <Star className="w-3 h-3" />
                 Forgotten Essential
               </span>
             )}
-            {showPersonalizedBadge && (
+            {showPersonalizedBadge && !showRequestedBadge && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold bg-orange-100 text-orange-700 rounded-full border border-orange-200">
                 <Sparkles className="w-3 h-3" />
                 Personalized Pick
