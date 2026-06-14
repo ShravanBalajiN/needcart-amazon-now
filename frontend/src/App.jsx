@@ -27,6 +27,7 @@ export default function App() {
   const [result, setResult] = useState(null);
   const [cartItems, setCartItems] = useState([]);
   const [removedItems, setRemovedItems] = useState([]);
+  const [cartConfirmed, setCartConfirmed] = useState(false);
 
   const navigate = useNavigate();
 
@@ -44,6 +45,7 @@ export default function App() {
 
   const resetLocalCartState = () => {
     setRemovedItems([]);
+    setCartConfirmed(false);
   };
 
   const handleSubmit = async () => {
@@ -88,16 +90,19 @@ export default function App() {
           : item
       )
     );
+    setCartConfirmed(false);
   };
 
   const handleRemove = (itemToRemove) => {
     setCartItems((prev) => prev.filter((item) => !(item.id === itemToRemove.id && item.name === itemToRemove.name)));
     setRemovedItems((prev) => [...prev, itemToRemove]);
+    setCartConfirmed(false);
   };
 
   const handleUndoRemove = (itemToRestore) => {
     setRemovedItems((prev) => prev.filter((item) => !(item.id === itemToRestore.id && item.name === itemToRestore.name)));
     setCartItems((prev) => [...prev, itemToRestore]);
+    setCartConfirmed(false);
   };
 
   const handleNeedChange = (val) => {
@@ -146,6 +151,8 @@ export default function App() {
                 result={result} cartItems={cartItems} removedItems={removedItems}
                 onSwap={handleSwap} onRemove={handleRemove} onUndoRemove={handleUndoRemove}
                 cartTotal={cartTotal}
+                cartConfirmed={cartConfirmed} onConfirmCart={() => setCartConfirmed(true)}
+                onCancelConfirm={() => setCartConfirmed(false)}
               />
             }
           />

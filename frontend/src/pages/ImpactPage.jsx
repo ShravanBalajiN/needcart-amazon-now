@@ -165,7 +165,6 @@ export function ImpactSnapshot({ result, cartItems }) {
     <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl border border-orange-100 p-4">
       <div className="flex items-center justify-between mb-3">
         <h4 className="text-xs font-bold text-gray-800">Impact Snapshot</h4>
-        <a href="/impact" className="text-[10px] font-medium text-[#ff9900] hover:underline">View Full Impact →</a>
       </div>
       <div className="grid grid-cols-2 gap-2">
         <MiniMetric icon={Search} value={`${m.searchSteps} searches avoided`} />

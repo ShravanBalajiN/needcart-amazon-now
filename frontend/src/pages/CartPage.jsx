@@ -24,6 +24,7 @@ const INTENT_DISPLAY = {
 export default function CartPage({
   result, cartItems, removedItems,
   onSwap, onRemove, onUndoRemove, cartTotal,
+  cartConfirmed, onConfirmCart, onCancelConfirm,
 }) {
   const navigate = useNavigate();
 
@@ -124,6 +125,9 @@ export default function CartPage({
               totalPrice={cartTotal}
               eta={result.eta_minutes}
               itemCount={cartItems.length}
+              confirmed={cartConfirmed}
+              onConfirm={onConfirmCart}
+              onCancelConfirm={onCancelConfirm}
             />
             <ImpactSnapshot result={result} cartItems={cartItems} />
           </div>
