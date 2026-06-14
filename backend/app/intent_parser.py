@@ -316,12 +316,22 @@ _PRODUCT_ALIASES: dict[str, list[str]] = {
 }
 
 
+def _normalize_for_preference_extraction(text: str) -> str:
+    """Normalize text for preference extraction - add spaces around punctuation."""
+    # Add space before/after periods, commas that join words (e.g. "rupees.dont" -> "rupees. dont")
+    text = re.sub(r"\.(\w)", r". \1", text)
+    text = re.sub(r",(\w)", r", \1", text)
+    # Normalize whitespace
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
 def extract_excluded_items(text: str) -> list[str]:
     """
     Extract items the user explicitly does NOT want.
     Supports: don't add X, do not add X, no X, avoid X, without X, exclude X, remove X, don't include X
     """
-    lower = text.lower()
+    lower = _normalize_for_preference_extraction(text.lower())
     excluded = []
 
     # Patterns that capture what comes after the exclusion phrase
@@ -354,7 +364,7 @@ def extract_requested_extra_items(text: str) -> list[str]:
     Supports: add X, add X extra, also add X, include X, must include X, I want X, need X also
     Important: Must not match "don't add X" patterns.
     """
-    lower = text.lower()
+    lower = _normalize_for_preference_extraction(text.lower())
     requested = []
 
     # First, identify exclusion zones to avoid matching them as inclusions

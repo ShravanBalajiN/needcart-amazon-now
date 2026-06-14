@@ -133,6 +133,8 @@ def generate_cart(request: GenerateCartRequest):
                 people_count=constraints.people_count,
                 urgency_minutes=constraints.urgency_minutes,
                 dietary_preference=profile["dietary_preference"],
+                excluded_items=constraints.excluded_items,
+                requested_extra_items=constraints.requested_extra_items,
             )
 
         # Build the cart

@@ -45,6 +45,7 @@ class CartItem(BaseModel):
     is_forgotten_essential: bool = False
     is_personalized: bool = False
     personalization_reason: Optional[str] = None
+    is_user_requested: bool = False
     image_url: Optional[str] = None
 
 

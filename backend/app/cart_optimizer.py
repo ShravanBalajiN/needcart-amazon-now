@@ -339,14 +339,14 @@ def build_cart(
     covered_categories: set[str] = set()
     covered_groups: set[str] = set()
 
-    def _add_item(product: dict, qty: int, reason: str, is_forgotten: bool = False) -> None:
+    def _add_item(product: dict, qty: int, reason: str, is_forgotten: bool = False, is_user_requested: bool = False) -> None:
         nonlocal total
         item_cost = product["price"] * qty
 
         # Determine personalization status
         personalized = False
         p_reason = None
-        if household_profile is not None:
+        if household_profile is not None and not is_user_requested:
             if _is_preferred(product):
                 personalized = True
                 p_reason = personalization_reason or "Preferred by this household."
@@ -377,6 +377,7 @@ def build_cart(
             is_forgotten_essential=is_forgotten,
             is_personalized=personalized,
             personalization_reason=p_reason,
+            is_user_requested=is_user_requested,
             image_url=image_url,
         ))
         total += item_cost
@@ -614,6 +615,82 @@ def build_cart(
                         cat_item_count += 1
 
     # =========================================================================
+    # STEP 1.5: Add user-requested extra items (HIGH PRIORITY)
+    # Processed early so explicit requests get budget priority over optionals.
+    # Dietary filter is NOT applied - user explicitly requested these items.
+    # =========================================================================
+    if user_requested:
+        for req_item in user_requested:
+            # Safety check: block medicine requests for child_fever
+            if intent == "child_fever":
+                is_medicine = any(kw in req_item for kw in _SAFETY_BLOCKED_KEYWORDS)
+                if is_medicine:
+                    skipped.append(SkippedItem(
+                        id="SAFETY",
+                        name=req_item.title(),
+                        reason="Medication cannot be added in this demo cart. Please consult a doctor.",
+                    ))
+                    continue
+
+            # Skip if also in exclusion list
+            if req_item in user_excluded:
+                continue
+
+            # Find matching catalog product - NO dietary filter for explicit user requests
+            candidates = [
+                p for p in CATALOG
+                if req_item in p["name"].lower()
+                and _is_available(p, stress)
+                and p["id"] not in added_ids
+                and p.get("substitute_group") not in blocked_groups
+                and not _is_user_excluded(p)
+            ]
+            if not candidates:
+                candidates = [
+                    p for p in CATALOG
+                    if (req_item in p.get("category", "").lower()
+                        or req_item in p.get("substitute_group", "").lower())
+                    and _is_available(p, stress)
+                    and p["id"] not in added_ids
+                    and p.get("substitute_group") not in blocked_groups
+                    and not _is_user_excluded(p)
+                ]
+
+            if candidates:
+                if mode == CartMode.budget:
+                    candidates.sort(key=lambda p: p["price"])
+                else:
+                    candidates.sort(key=lambda p: (p["eta_minutes"] * 0.4 + p["price"] * 0.6))
+
+                added_requested = False
+                for candidate in candidates:
+                    if candidate["id"] in added_ids:
+                        continue
+                    if total + candidate["price"] <= budget:
+                        reason = "User-requested item. Added because you requested it."
+                        _add_item(candidate, 1, reason, False, is_user_requested=True)
+                        added_requested = True
+                        break
+                    elif mode in (CartMode.balanced, CartMode.complete) and total + candidate["price"] <= budget * 1.15:
+                        reason = "User-requested item. Added per request (slight budget stretch)."
+                        _add_item(candidate, 1, reason, False, is_user_requested=True)
+                        added_requested = True
+                        break
+
+                if not added_requested:
+                    skipped.append(SkippedItem(
+                        id="REQ",
+                        name=req_item.title(),
+                        reason=f"Could not add {req_item} - exceeds budget.",
+                    ))
+            else:
+                skipped.append(SkippedItem(
+                    id="REQ",
+                    name=req_item.title(),
+                    reason=f"Could not add {req_item} - not available in catalog or out of stock.",
+                ))
+
+    # =========================================================================
     # STEP 2: Forgotten essentials (only if not already added in step 1)
     # =========================================================================
     for cat in forgotten_categories:
@@ -752,78 +829,6 @@ def build_cart(
                     continue
                 if total + product["price"] <= budget:
                     _try_add_product(product, is_forgotten=False)
-
-    # =========================================================================
-    # STEP 5b: Add user-requested extra items
-    # =========================================================================
-    if user_requested:
-        for req_item in user_requested:
-            # Safety check: block medicine requests for child_fever
-            if intent == "child_fever":
-                is_medicine = any(kw in req_item for kw in _SAFETY_BLOCKED_KEYWORDS)
-                if is_medicine:
-                    skipped.append(SkippedItem(
-                        id="SAFETY",
-                        name=req_item.title(),
-                        reason="Medication cannot be added in this demo cart. Please consult a doctor.",
-                    ))
-                    continue
-
-            # Find matching catalog product
-            candidates = [
-                p for p in CATALOG
-                if req_item in p["name"].lower()
-                and _is_available(p, stress)
-                and _matches_dietary(p, dietary)
-                and p["id"] not in added_ids
-                and p.get("substitute_group") not in blocked_groups
-            ]
-            if not candidates:
-                # Try broader match on category or substitute group
-                candidates = [
-                    p for p in CATALOG
-                    if (req_item in p.get("category", "").lower()
-                        or req_item in p.get("substitute_group", "").lower())
-                    and _is_available(p, stress)
-                    and _matches_dietary(p, dietary)
-                    and p["id"] not in added_ids
-                    and p.get("substitute_group") not in blocked_groups
-                ]
-
-            if candidates:
-                # Pick the best candidate (cheapest that fits budget in budget mode, otherwise best match)
-                if mode == CartMode.budget:
-                    candidates.sort(key=lambda p: p["price"])
-                else:
-                    candidates.sort(key=lambda p: (p["eta_minutes"] * 0.4 + p["price"] * 0.6))
-
-                added_requested = False
-                for candidate in candidates:
-                    if total + candidate["price"] <= budget:
-                        reason = f"Added per user request."
-                        _add_item(candidate, 1, reason, False)
-                        added_requested = True
-                        break
-                    elif mode in (CartMode.balanced, CartMode.complete) and total + candidate["price"] <= budget * 1.1:
-                        # Allow slight budget overrun for explicit requests in non-budget modes
-                        reason = f"Added per user request (slight budget stretch)."
-                        _add_item(candidate, 1, reason, False)
-                        added_requested = True
-                        break
-
-                if not added_requested:
-                    skipped.append(SkippedItem(
-                        id="REQ",
-                        name=req_item.title(),
-                        reason=f"Could not add {req_item} - exceeds budget.",
-                    ))
-            else:
-                # Not found in catalog or out of stock
-                skipped.append(SkippedItem(
-                    id="REQ",
-                    name=req_item.title(),
-                    reason=f"Could not add {req_item} - not available in catalog or out of stock.",
-                ))
 
     # =========================================================================
     # STEP 6: Budget enforcement - trim if over budget
