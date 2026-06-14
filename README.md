@@ -858,25 +858,38 @@ Demo Video: <add video URL if available>
 
 ## Screenshots
 
-Add screenshots under:
+### Home Page
+![Home Page](docs/screenshots/1-Home.png)
+![Home Page](docs/screenshots/1-Home1.png)
 
-```txt
-docs/screenshots/
-```
+### Build Cart Page
+![Build Cart Page](docs/screenshots/2-BuildCart.png)
+![Build Cart Page](docs/screenshots/2-BuildCart1.png)
 
-Recommended screenshots:
+### Cart Review Page
+![Cart Review Page](docs/screenshots/3-CartReview.png)
+![Cart Review Page](docs/screenshots/3-Cartreview2.png)
+![OrderSummary](docs/screenshots/4-Ordersummary.png)
+### Family Personalization
+![Family Personalization](docs/screenshots/5-FamilyProfile.png)
 
-1. Home page
-2. Build Cart page
-3. Cart Review page
-4. Family Profile personalization
-5. Explicit preference: Don't add Sprite / Add Pepsi extra
-6. Smart Swap
-7. Child Fever safety cart
-8. Impact page
-9. Roadmap page
+![Family Personalization](docs/screenshots/5-Familprofileresult.png)
 
----
+### Explicit Preference Handling
+![Explicit Preference](docs/screenshots/6-explicitpref.png)
+![Explicit Preference](docs/screenshots/6-explicitprefoutput.png)
+
+
+### Child Fever Safety
+![Child Fever Safety](docs/screenshots/7-childfeversafety.png)
+
+### Impact & Operations Page
+![Impact Page](docs/screenshots/8-impactpage.png)
+
+### Roadmap Page
+![Roadmap Page](docs/screenshots/9-roadmap.png)
+![Roadmap Page](docs/screenshots/9-roadmap1.png)
+
 
 ## Impact Metrics
 
