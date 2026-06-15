@@ -843,15 +843,15 @@ Recommended deployment split:
 | Component | Suggested Platform                |
 | --------- | --------------------------------- |
 | Frontend  | Vercel                            |
-| Backend   | Render / Railway / AWS App Runner |
+| Backend   | Render  |
 
 Deployment links:
 
 ```txt
-Frontend Live URL: <add after deployment>
-Backend Live URL: <add after deployment>
-GitHub Repository: <add repository URL>
-Demo Video: <add video URL if available>
+Frontend Live URL: https://needcart-amazon-now.vercel.app
+Backend Live URL: https://needcart-backend.onrender.com
+GitHub Repository: https://github.com/ShravanBalajiN/needcart-amazon-now
+Demo Video: Submitted separately as `NeedCart_AmazonNow_Demo.mp4`
 ```
 
 ---
